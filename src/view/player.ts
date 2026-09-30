@@ -1,0 +1,504 @@
+import * as THREE from 'three';
+import gsap from 'gsap';
+import { Board, Step } from '../core/types';
+import { GameScene } from './scene';
+import { GemViewManager } from './gemViews';
+import { FXManager } from './fx';
+import { sound } from '../audio/sound';
+
+export class TimelinePlayer {
+  private scene: GameScene;
+  private gemManager: GemViewManager;
+  private fx: FXManager;
+  private activeTimelines: gsap.core.Timeline[] = [];
+
+  constructor(scene: GameScene, gemManager: GemViewManager, fx: FXManager) {
+    this.scene = scene;
+    this.gemManager = gemManager;
+    this.fx = fx;
+
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+  }
+
+  private onVisibilityChange = () => {
+    if (document.hidden) {
+      // Complete active timelines instantly to prevent desynchronization
+      for (const tl of this.activeTimelines) {
+        tl.progress(1);
+      }
+      this.activeTimelines = [];
+    }
+  };
+
+  /**
+   * Replays the deterministic Step timeline asynchronously.
+   */
+  public async play(steps: Step[], expectedSnapshot?: Readonly<Board>): Promise<void> {
+    for (const step of steps) {
+      await this.executeStep(step);
+    }
+
+    // Safety net: verify view against core snapshot
+    if (expectedSnapshot) {
+      this.verifyAndResync(expectedSnapshot);
+    }
+  }
+
+  private executeStep(step: Step): Promise<void> {
+    return new Promise((resolve) => {
+      switch (step.type) {
+        case 'swap':
+          this.handleSwap(step, resolve);
+          break;
+        case 'transform':
+          this.handleTransform(step, resolve);
+          break;
+        case 'detonate':
+          this.handleDetonate(step, resolve);
+          break;
+        case 'clear':
+          this.handleClear(step, resolve);
+          break;
+        case 'spawnSpecial':
+          this.handleSpawnSpecial(step, resolve);
+          break;
+        case 'gravity':
+          this.handleGravity(step, resolve);
+          break;
+        case 'refill':
+          this.handleRefill(step, resolve);
+          break;
+        case 'shuffle':
+          this.handleShuffle(step, resolve);
+          break;
+        default:
+          resolve();
+      }
+    });
+  }
+
+  private handleSwap(step: Extract<Step, { type: 'swap' }>, done: () => void) {
+    const posA = this.scene.cellToWorld(step.a.r, step.a.c);
+    const posB = this.scene.cellToWorld(step.b.r, step.b.c);
+
+    // Find views at these positions
+    let viewA: any = null;
+    let viewB: any = null;
+
+    for (const v of this.gemManager.views.values()) {
+      const p = v.group.position;
+      if (Math.abs(p.x - posA.x) < 0.1 && Math.abs(p.y - posA.y) < 0.1) viewA = v;
+      if (Math.abs(p.x - posB.x) < 0.1 && Math.abs(p.y - posB.y) < 0.1) viewB = v;
+    }
+
+    if (!viewA || !viewB) {
+      done();
+      return;
+    }
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+
+    if (step.valid) {
+      sound.playSwap();
+      tl.to(viewA.group.position, {
+        x: posB.x,
+        y: posB.y,
+        duration: 0.18,
+        ease: 'power2.inOut',
+      }, 0);
+      tl.to(viewB.group.position, {
+        x: posA.x,
+        y: posA.y,
+        duration: 0.18,
+        ease: 'power2.inOut',
+      }, 0);
+    } else {
+      // Invalid: swap halfway then return with bounce
+      sound.playInvalidSwap();
+      const midA = new THREE.Vector3().lerpVectors(posA, posB, 0.45);
+      const midB = new THREE.Vector3().lerpVectors(posB, posA, 0.45);
+
+      tl.to(viewA.group.position, {
+        x: midA.x,
+        y: midA.y,
+        duration: 0.1,
+        ease: 'power1.out',
+      }, 0);
+      tl.to(viewB.group.position, {
+        x: midB.x,
+        y: midB.y,
+        duration: 0.1,
+        ease: 'power1.out',
+      }, 0);
+
+      tl.to(viewA.group.position, {
+        x: posA.x,
+        y: posA.y,
+        duration: 0.12,
+        ease: 'elastic.out(1.2, 0.4)',
+      });
+      tl.to(viewB.group.position, {
+        x: posB.x,
+        y: posB.y,
+        duration: 0.12,
+        ease: 'elastic.out(1.2, 0.4)',
+      }, '<');
+    }
+  }
+
+  private handleTransform(step: Extract<Step, { type: 'transform' }>, done: () => void) {
+    sound.playSpawnSpecial();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+
+    step.cells.forEach((cell, idx) => {
+      const newGem = step.to[idx];
+      const oldView = this.gemManager.views.get(newGem.id);
+      const worldPos = this.scene.cellToWorld(cell.r, cell.c);
+
+      if (oldView) {
+        this.gemManager.removeView(newGem.id);
+      }
+      const newView = this.gemManager.createGemView(newGem);
+      newView.group.position.copy(worldPos);
+      this.scene.gemGroup.add(newView.group);
+
+      tl.fromTo(
+        newView.group.scale,
+        { x: 0.3, y: 0.3 },
+        {
+          x: 1,
+          y: 1,
+          duration: 0.25,
+          ease: 'back.out(2)',
+        },
+        idx * 0.03
+      );
+    });
+  }
+
+  private handleDetonate(step: Extract<Step, { type: 'detonate' }>, done: () => void) {
+    const originPos = this.scene.cellToWorld(step.origin.r, step.origin.c);
+    const tier = (step.gem.kind === 'bomb' ? step.gem.tier : 1) as 1 | 2;
+
+    sound.playBombExplosion(tier);
+    this.fx.shake(tier === 2 ? 3.5 : 2.0);
+
+    if (tier === 2) {
+      this.fx.spawnShockwave(originPos, 3.5, 0.45);
+    }
+
+    const colorHex =
+      step.gem.kind === 'bomb'
+        ? this.gemManager.COLOR_HEXES[step.gem.color]
+        : 0xffffff;
+    this.fx.spawnBurst(originPos, colorHex, tier === 2 ? 22 : 14, 1.4);
+
+    // Brief timeout to let the blast initiate before clearing
+    setTimeout(done, 120);
+  }
+
+  private handleClear(step: Extract<Step, { type: 'clear' }>, done: () => void) {
+    if (step.cause === 'fusion') {
+      sound.playBombExplosion(2);
+      this.fx.shake(3.0);
+    } else if (step.cause === 'rainbowTarget') {
+      sound.playRainbowBeam();
+      this.fx.shake(1.8);
+    } else {
+      sound.playMatch(step.cascade);
+      this.fx.shake(Math.min(2.5, 0.5 + step.cells.length * 0.15));
+    }
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        // Remove cleared views from view manager and scene
+        for (const item of step.cells) {
+          this.gemManager.removeView(item.gem.id);
+        }
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+
+    // Calculate score per item for floating indicators
+    const ptsPerGem = Math.round(step.points / Math.max(1, step.cells.length));
+
+    step.cells.forEach((item, idx) => {
+      const view = this.gemManager.views.get(item.gem.id);
+      const worldPos = this.scene.cellToWorld(item.cell.r, item.cell.c);
+      const delay = (item.wave - 1) * 0.05 + idx * 0.015;
+
+      const colorHex =
+        item.gem.kind === 'rainbow'
+          ? 0xffffff
+          : this.gemManager.COLOR_HEXES[item.gem.color];
+
+      this.fx.spawnBurst(worldPos, colorHex, 8, 1.0);
+
+      // Spawn floating score for notable events or groups
+      if (idx === 0 || ptsPerGem >= 100) {
+        this.fx.spawnFloatingScore(worldPos, ptsPerGem);
+      }
+
+      if (view) {
+        tl.to(
+          view.group.scale,
+          {
+            x: 0,
+            y: 0,
+            duration: 0.18,
+            ease: 'power2.in',
+          },
+          delay
+        );
+        tl.to(
+          view.mesh.rotation,
+          {
+            z: Math.PI * 0.5,
+            duration: 0.18,
+            ease: 'power1.in',
+          },
+          delay
+        );
+      }
+    });
+  }
+
+  private handleSpawnSpecial(step: Extract<Step, { type: 'spawnSpecial' }>, done: () => void) {
+    sound.playSpawnSpecial();
+    const pos = this.scene.cellToWorld(step.cell.r, step.cell.c);
+    const view = this.gemManager.createGemView(step.gem);
+    view.group.position.copy(pos);
+    view.group.scale.set(0, 0, 1);
+    this.scene.gemGroup.add(view.group);
+
+    const colorHex =
+      step.gem.kind === 'rainbow'
+        ? 0xffffff
+        : this.gemManager.COLOR_HEXES[step.gem.color];
+    this.fx.spawnBurst(pos, colorHex, 14, 1.2);
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+
+    tl.to(view.group.scale, {
+      x: 1.25,
+      y: 1.25,
+      duration: 0.18,
+      ease: 'power2.out',
+    });
+    tl.to(view.group.scale, {
+      x: 1,
+      y: 1,
+      duration: 0.12,
+      ease: 'bounce.out',
+    });
+  }
+
+  private handleGravity(step: Extract<Step, { type: 'gravity' }>, done: () => void) {
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+
+    for (const m of step.moves) {
+      const view = this.gemManager.views.get(m.id);
+      if (!view) continue;
+
+      const targetPos = this.scene.cellToWorld(m.to.r, m.to.c);
+      const dr = Math.abs(m.to.r - m.from.r);
+      const duration = Math.min(0.35, 0.1 + 0.07 * Math.sqrt(dr));
+
+      tl.to(
+        view.group.position,
+        {
+          x: targetPos.x,
+          y: targetPos.y,
+          duration,
+          ease: 'power2.in',
+        },
+        0
+      );
+
+      // Subtle squash upon landing
+      tl.to(
+        view.group.scale,
+        {
+          x: 1.15,
+          y: 0.88,
+          duration: 0.06,
+          yoyo: true,
+          repeat: 1,
+          ease: 'sine.out',
+        },
+        duration
+      );
+    }
+  }
+
+  private handleRefill(step: Extract<Step, { type: 'refill' }>, done: () => void) {
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+
+    for (const sp of step.spawns) {
+      const view = this.gemManager.createGemView(sp.gem);
+      const startPos = this.scene.cellToWorld(sp.dropFrom, sp.col);
+      const targetPos = this.scene.cellToWorld(sp.toRow, sp.col);
+
+      view.group.position.set(startPos.x, startPos.y, 0);
+      this.scene.gemGroup.add(view.group);
+
+      const dr = Math.abs(sp.toRow - sp.dropFrom);
+      const duration = Math.min(0.42, 0.12 + 0.08 * Math.sqrt(dr));
+      const delay = sp.col * 0.02;
+
+      tl.to(
+        view.group.position,
+        {
+          x: targetPos.x,
+          y: targetPos.y,
+          duration,
+          ease: 'power2.in',
+        },
+        delay
+      );
+
+      // Squash and stretch landing
+      tl.to(
+        view.group.scale,
+        {
+          x: 1.18,
+          y: 0.85,
+          duration: 0.06,
+          yoyo: true,
+          repeat: 1,
+          ease: 'sine.out',
+        },
+        delay + duration
+      );
+    }
+  }
+
+  private handleShuffle(step: Extract<Step, { type: 'shuffle' }>, done: () => void) {
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+
+    for (const m of step.moves) {
+      const view = this.gemManager.views.get(m.id);
+      if (!view) continue;
+
+      const targetPos = this.scene.cellToWorld(m.to.r, m.to.c);
+      tl.to(
+        view.group.position,
+        {
+          x: targetPos.x,
+          y: targetPos.y,
+          duration: 0.35,
+          ease: 'power2.inOut',
+        },
+        0
+      );
+    }
+  }
+
+  /**
+   * Safety net: compares core snapshot with view and resyncs if any mismatch is detected.
+   */
+  public verifyAndResync(snapshot: Readonly<Board>) {
+    const rows = snapshot.length;
+    const cols = snapshot[0].length;
+    let mismatch = false;
+
+    // Check count
+    if (this.gemManager.views.size !== rows * cols) {
+      mismatch = true;
+    }
+
+    if (!mismatch) {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const gem = snapshot[r][c];
+          if (!gem) {
+            mismatch = true;
+            break;
+          }
+          const view = this.gemManager.views.get(gem.id);
+          if (!view) {
+            mismatch = true;
+            break;
+          }
+          const expectedPos = this.scene.cellToWorld(r, c);
+          if (
+            Math.abs(view.group.position.x - expectedPos.x) > 0.15 ||
+            Math.abs(view.group.position.y - expectedPos.y) > 0.15
+          ) {
+            mismatch = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (mismatch) {
+      console.warn('Safety Net triggered: Re-synchronizing view with core snapshot!');
+      this.gemManager.clearAll();
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const gem = snapshot[r][c];
+          if (gem) {
+            const view = this.gemManager.createGemView(gem);
+            const pos = this.scene.cellToWorld(r, c);
+            view.group.position.copy(pos);
+            this.scene.gemGroup.add(view.group);
+          }
+        }
+      }
+    }
+  }
+
+  private removeTimeline(tl: gsap.core.Timeline) {
+    const idx = this.activeTimelines.indexOf(tl);
+    if (idx !== -1) {
+      this.activeTimelines.splice(idx, 1);
+    }
+  }
+
+  public destroy() {
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    for (const tl of this.activeTimelines) {
+      tl.kill();
+    }
+    this.activeTimelines = [];
+  }
+}

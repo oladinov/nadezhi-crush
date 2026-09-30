@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Nadezhi Match-3 • Three.js</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- TOP HUD -->
+    <header class="hud-header">
+      <div class="hud-panel">
+        <button id="btn-levels" class="card-pill level-title-container" style="cursor: pointer; border: none;">
+          <span id="ui-level-badge" class="level-badge">Nivel 1</span>
+          <span id="ui-level-name" class="level-name">Primeros Pasos ▾</span>
+        </button>
+      </div>
+
+      <div class="hud-panel">
+        <div class="card-pill moves-badge">
+          <div style="text-align: center;">
+            <div id="ui-moves" class="moves-count">20</div>
+            <div class="moves-label">Movimientos</div>
+          </div>
+        </div>
+
+        <div class="card-pill score-badge">
+          <div>
+            <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Puntos</div>
+            <div id="ui-score" class="score-val">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-panel">
+        <button id="btn-sound" class="btn-icon" title="Sonido">🔊</button>
+        <button id="btn-skin" class="btn-icon" title="Cambiar Apariencia (Gemas / Emotes)">💎</button>
+        <button id="btn-restart" class="btn-icon" title="Reiniciar Nivel">🔄</button>
+      </div>
+    </header>
+
+    <!-- GOALS CONTAINER -->
+    <div id="ui-goals" class="goals-container">
+      <!-- Injected via TypeScript -->
+    </div>
+
+    <!-- TUTORIAL BANNER -->
+    <div id="ui-tutorial" class="tutorial-banner" style="display: none;">
+      <div id="ui-tutorial-text" class="tutorial-text"></div>
+      <button id="ui-tutorial-close" class="tutorial-close">✕</button>
+    </div>
+
+    <!-- THREE.JS CANVAS CONTAINER -->
+    <div id="game-canvas"></div>
+
+    <!-- BOTTOM BAR -->
+    <div class="bottom-bar">
+      <button id="btn-prev-level" class="btn-pill btn-secondary">◀ Anterior</button>
+      <button id="btn-help" class="btn-pill btn-secondary">💡 Ayuda</button>
+      <button id="btn-next-level" class="btn-pill">Siguiente ▶</button>
+    </div>
+
+    <!-- WIN MODAL -->
+    <div id="modal-win" class="modal-overlay">
+      <div class="modal-card">
+        <div style="font-size: 3.5rem; margin-bottom: 8px;">🎉</div>
+        <h2 class="modal-title win">¡Nivel Completado!</h2>
+        <p style="color: #94a3b8;">¡Excelente jugada! Todas las metas han sido superadas.</p>
+        <div class="modal-score-box">
+          <div class="modal-score-label">Puntuación Final</div>
+          <div id="modal-win-score" class="modal-score-val">0</div>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-modal-replay" class="btn-pill btn-secondary" style="padding: 12px 24px;">Reintentar</button>
+          <button id="btn-modal-next" class="btn-primary">Siguiente Nivel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOSE MODAL -->
+    <div id="modal-lose" class="modal-overlay">
+      <div class="modal-card">
+        <div style="font-size: 3.5rem; margin-bottom: 8px;">💔</div>
+        <h2 class="modal-title lose">¡Sin Movimientos!</h2>
+        <p style="color: #94a3b8;">Te has quedado sin movimientos para completar las metas.</p>
+        <div class="modal-score-box">
+          <div class="modal-score-label">Puntos Obtenidos</div>
+          <div id="modal-lose-score" class="modal-score-val">0</div>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-modal-lose-retry" class="btn-primary">Reintentar Nivel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEVEL SELECT MODAL -->
+    <div id="modal-level-select" class="modal-overlay">
+      <div class="modal-card" style="max-width: 480px;">
+        <h2 class="modal-title" style="color: #ffffff; font-size: 1.6rem;">Seleccionar Nivel</h2>
+        <p style="color: #94a3b8; font-size: 0.9rem;">Elige cualquier nivel curado (1–20) o infinito (&gt;20):</p>
+        <div id="level-select-grid" class="level-grid"></div>
+        <div class="modal-actions">
+          <button id="btn-close-level-select" class="btn-pill btn-secondary" style="padding: 10px 24px;">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
