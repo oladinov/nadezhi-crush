@@ -24,7 +24,7 @@ export class GemViewManager {
   private haloTexture: THREE.CanvasTexture;
   private jewelMaterials: THREE.MeshBasicMaterial[] = [];
   private emoteMaterials: (THREE.MeshBasicMaterial | null)[] = [];
-  public skinMode: GemSkinMode = 'jewels';
+  public skinMode: GemSkinMode = 'emotes';
 
   public views: Map<number, GemView> = new Map();
 
@@ -92,6 +92,13 @@ export class GemViewManager {
             map: tex,
             transparent: true,
           });
+          if (this.skinMode === 'emotes') {
+            for (const view of this.views.values()) {
+              if (view.gem.kind !== 'rainbow' && view.gem.color === i) {
+                view.mesh.material = this.emoteMaterials[i]!;
+              }
+            }
+          }
         },
         undefined,
         () => {

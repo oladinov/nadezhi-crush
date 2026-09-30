@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Nadezhi Match-3 • Three.js</title>
+  <title>Nadezhi Match-3 • Tierras de Fantasía</title>
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body>
@@ -34,8 +34,17 @@
       </div>
 
       <div class="hud-panel">
-        <button id="btn-sound" class="btn-icon" title="Sonido">🔊</button>
-        <button id="btn-skin" class="btn-icon" title="Cambiar Apariencia (Gemas / Emotes)">💎</button>
+        <!-- VOLUME CONTROL -->
+        <div class="card-pill volume-control-pill">
+          <button id="btn-sound" class="btn-icon-subtle" title="Silenciar / Activar sonido">🔊</button>
+          <input type="range" id="volume-slider" min="0" max="100" value="70" class="volume-slider" title="Volumen" />
+          <span id="volume-val" class="volume-label">70%</span>
+        </div>
+
+        <!-- SKIN TOGGLE (EMOTES DEFAULT) -->
+        <button id="btn-skin" class="btn-icon" title="Cambiar Apariencia (Emotes / Gemas)">🎭</button>
+
+        <!-- RESTART LEVEL -->
         <button id="btn-restart" class="btn-icon" title="Reiniciar Nivel">🔄</button>
       </div>
     </header>
@@ -45,19 +54,12 @@
       <!-- Injected via TypeScript -->
     </div>
 
-    <!-- TUTORIAL BANNER -->
-    <div id="ui-tutorial" class="tutorial-banner" style="display: none;">
-      <div id="ui-tutorial-text" class="tutorial-text"></div>
-      <button id="ui-tutorial-close" class="tutorial-close">✕</button>
-    </div>
-
     <!-- THREE.JS CANVAS CONTAINER -->
     <div id="game-canvas"></div>
 
-    <!-- BOTTOM BAR -->
+    <!-- BOTTOM BAR (CLEAN NAVIGATION) -->
     <div class="bottom-bar">
       <button id="btn-prev-level" class="btn-pill btn-secondary">◀ Anterior</button>
-      <button id="btn-help" class="btn-pill btn-secondary">💡 Ayuda</button>
       <button id="btn-next-level" class="btn-pill">Siguiente ▶</button>
     </div>
 

@@ -2,8 +2,8 @@
 
 :root {
   --bg-primary: #0b0f19;
-  --bg-card: rgba(30, 41, 59, 0.7);
-  --border-card: rgba(255, 255, 255, 0.1);
+  --bg-card: rgba(15, 23, 42, 0.78);
+  --border-card: rgba(255, 255, 255, 0.14);
   --accent-blue: #38bdf8;
   --accent-gold: #facc15;
   --accent-purple: #c084fc;
@@ -36,6 +36,16 @@ html, body {
   display: flex;
   flex-direction: column;
   position: relative;
+  background: url('/fantasy_plains.jpg') center center / cover no-repeat;
+}
+
+#app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.1) 0%, rgba(11, 15, 25, 0.45) 100%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* TOP HUD */
@@ -45,12 +55,12 @@ html, body {
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 12px 16px;
+  padding: 12px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(11, 15, 25, 0.95) 0%, rgba(11, 15, 25, 0) 100%);
+  background: linear-gradient(180deg, rgba(11, 15, 25, 0.85) 0%, rgba(11, 15, 25, 0) 100%);
 }
 
 .hud-panel {
@@ -62,15 +72,15 @@ html, body {
 
 .card-pill {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-card);
   border-radius: 9999px;
   padding: 8px 16px;
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .level-title-container {
@@ -93,9 +103,9 @@ html, body {
 }
 
 .moves-badge {
-  background: linear-gradient(135deg, #1e293b, #0f172a);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  padding: 8px 18px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 6px 18px;
 }
 
 .moves-count {
@@ -122,13 +132,81 @@ html, body {
   color: #ffffff;
 }
 
+/* VOLUME CONTROLS */
+.volume-control-pill {
+  padding: 6px 14px;
+  gap: 8px;
+}
+
+.btn-icon-subtle {
+  background: none;
+  border: none;
+  color: var(--text-main);
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  transition: transform 0.15s ease;
+}
+
+.btn-icon-subtle:hover {
+  transform: scale(1.15);
+}
+
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 76px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+  transition: transform 0.15s ease;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+  border: none;
+}
+
+.volume-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 30px;
+  text-align: right;
+}
+
 /* BUTTONS */
 .btn-icon {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: var(--bg-card);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-card);
   color: var(--text-main);
   display: flex;
@@ -136,24 +214,24 @@ html, body {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  font-size: 1.1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-size: 1.15rem;
 }
 
 .btn-icon:hover {
-  background: rgba(51, 65, 85, 0.9);
+  background: rgba(51, 65, 85, 0.95);
   transform: translateY(-2px) scale(1.05);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .btn-icon:active {
   transform: translateY(0) scale(0.96);
 }
 
-/* GOALS BAR (Bottom or Sub-header) */
+/* GOALS BAR */
 .goals-container {
   position: absolute;
-  top: 72px;
+  top: 74px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -163,22 +241,22 @@ html, body {
 }
 
 .goal-chip {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   padding: 6px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   transition: all 0.3s ease;
 }
 
 .goal-chip.completed {
   border-color: var(--accent-green);
-  background: rgba(6, 78, 59, 0.85);
+  background: rgba(6, 78, 59, 0.88);
 }
 
 .goal-chip .check-icon {
@@ -196,6 +274,8 @@ html, body {
   width: 100%;
   height: 100%;
   flex: 1;
+  position: relative;
+  z-index: 2;
 }
 
 /* BOTTOM CONTROLS */
@@ -208,19 +288,19 @@ html, body {
   align-items: center;
   gap: 12px;
   z-index: 10;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(14px);
+  padding: 8px 18px;
   border-radius: 9999px;
   border: 1px solid var(--border-card);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 .btn-pill {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   border: none;
   color: #ffffff;
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: 9999px;
   font-family: inherit;
   font-weight: 700;
@@ -238,49 +318,8 @@ html, body {
 }
 
 .btn-pill.btn-secondary {
-  background: rgba(51, 65, 85, 0.8);
+  background: rgba(51, 65, 85, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-/* TUTORIAL BANNER */
-.tutorial-banner {
-  position: absolute;
-  top: 130px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 90%;
-  width: 480px;
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.95), rgba(15, 23, 42, 0.95));
-  border: 1px solid rgba(96, 165, 250, 0.4);
-  border-radius: 16px;
-  padding: 12px 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  z-index: 20;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
-  animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translate(-50%, -20px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-
-.tutorial-text {
-  font-size: 0.9rem;
-  line-height: 1.4;
-  color: #e2e8f0;
-}
-
-.tutorial-close {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 4px;
 }
 
 /* MODALS */

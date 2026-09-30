@@ -31,7 +31,8 @@ export interface UIStateUpdate {
   }[];
   state: GameState;
   skinMode: GemSkinMode;
-  soundEnabled: boolean;
+  isMuted: boolean;
+  volume: number;
 }
 
 export class Match3Game {
@@ -193,8 +194,13 @@ export class Match3Game {
     this.notifyUI();
   }
 
-  public toggleSound() {
-    sound.enabled = !sound.enabled;
+  public toggleMute() {
+    sound.toggleMute();
+    this.notifyUI();
+  }
+
+  public setVolume(val: number) {
+    sound.setMasterVolume(val);
     this.notifyUI();
   }
 
@@ -258,7 +264,8 @@ export class Match3Game {
       goals: goalsData,
       state: this.state,
       skinMode: this.gemManager.skinMode,
-      soundEnabled: sound.enabled,
+      isMuted: sound.isMuted,
+      volume: sound.masterVolume,
     });
   }
 

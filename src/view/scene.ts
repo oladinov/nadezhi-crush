@@ -27,8 +27,9 @@ export class GameScene {
     this.clock = new THREE.Clock();
 
     // 1. Scene
+    // 1. Scene (transparent to display fantasy landscape backdrop)
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0f172a); // Deep modern slate blue
+    this.scene.background = null;
 
     // 2. Groups
     this.boardGroup = new THREE.Group();
@@ -55,11 +56,11 @@ export class GameScene {
     this.camera.position.set(0, 0, 100);
     this.camera.lookAt(0, 0, 0);
 
-    // 4. Renderer
+    // 4. Renderer with alpha support
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
-      alpha: false,
+      alpha: true,
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -127,9 +128,9 @@ export class GameScene {
     const boardHeight = rows * this.dimensions.cellSize + 0.3;
     const frameGeo = new THREE.PlaneGeometry(boardWidth, boardHeight);
     const frameMat = new THREE.MeshBasicMaterial({
-      color: 0x1e293b,
+      color: 0x0f172a,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.78,
     });
     const frameMesh = new THREE.Mesh(frameGeo, frameMat);
     frameMesh.position.set(0, 0, -0.05);
@@ -141,9 +142,9 @@ export class GameScene {
       for (let c = 0; c < cols; c++) {
         const isAlternate = (r + c) % 2 === 0;
         const tileMat = new THREE.MeshBasicMaterial({
-          color: isAlternate ? 0x243247 : 0x1a2436,
+          color: isAlternate ? 0x1e293b : 0x0f172a,
           transparent: true,
-          opacity: 0.85,
+          opacity: 0.65,
         });
         const tileMesh = new THREE.Mesh(tileGeo, tileMat);
         const worldPos = this.cellToWorld(r, c);

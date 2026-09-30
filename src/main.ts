@@ -1,4 +1,5 @@
 import { Match3Game, UIStateUpdate } from './game';
+import { sound } from './audio/sound';
 
 window.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('game-canvas');
@@ -10,16 +11,15 @@ window.addEventListener('DOMContentLoaded', () => {
   const uiMoves = document.getElementById('ui-moves')!;
   const uiScore = document.getElementById('ui-score')!;
   const uiGoals = document.getElementById('ui-goals')!;
-  const uiTutorial = document.getElementById('ui-tutorial')!;
-  const uiTutorialText = document.getElementById('ui-tutorial-text')!;
-  const uiTutorialClose = document.getElementById('ui-tutorial-close')!;
 
   const btnSound = document.getElementById('btn-sound')!;
+  const volumeSlider = document.getElementById('volume-slider') as HTMLInputElement;
+  const volumeVal = document.getElementById('volume-val')!;
+
   const btnSkin = document.getElementById('btn-skin')!;
   const btnRestart = document.getElementById('btn-restart')!;
   const btnPrev = document.getElementById('btn-prev-level')!;
   const btnNext = document.getElementById('btn-next-level')!;
-  const btnHelp = document.getElementById('btn-help')!;
   const btnLevels = document.getElementById('btn-levels')!;
 
   // Modals
@@ -35,8 +35,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const modalLevelSelect = document.getElementById('modal-level-select')!;
   const levelSelectGrid = document.getElementById('level-select-grid')!;
   const btnCloseLevelSelect = document.getElementById('btn-close-level-select')!;
-
-  let currentLevelShown = -1;
 
   // UI Update Handler
   const handleUIUpdate = (ui: UIStateUpdate) => {
@@ -64,20 +62,26 @@ window.addEventListener('DOMContentLoaded', () => {
       uiGoals.appendChild(chip);
     }
 
-    // Buttons state
-    btnSound.textContent = ui.soundEnabled ? '🔊' : '🔇';
-    btnSkin.textContent = ui.skinMode === 'jewels' ? '💎' : '🎭';
-
-    // Show tutorial on level load
-    if (currentLevelShown !== ui.level) {
-      currentLevelShown = ui.level;
-      if (ui.description) {
-        uiTutorialText.textContent = ui.description;
-        uiTutorial.style.display = 'flex';
-      } else {
-        uiTutorial.style.display = 'none';
-      }
+    // Volume & Sound state
+    if (ui.isMuted) {
+      btnSound.textContent = '🔇';
+    } else if (ui.volume > 0.5) {
+      btnSound.textContent = '🔊';
+    } else if (ui.volume > 0) {
+      btnSound.textContent = '🔉';
+    } else {
+      btnSound.textContent = '🔇';
     }
+
+    const currentPercent = Math.round(ui.volume * 100);
+    volumeVal.textContent = `${currentPercent}%`;
+    if (document.activeElement !== volumeSlider) {
+      volumeSlider.value = currentPercent.toString();
+    }
+
+    // Skin state: default emotes show 🎭, click toggles to 💎
+    btnSkin.textContent = ui.skinMode === 'emotes' ? '🎭' : '💎';
+    btnSkin.title = ui.skinMode === 'emotes' ? 'Apariencia: Emotes (Click para Joyas)' : 'Apariencia: Joyas (Click para Emotes)';
 
     // Modals
     if (ui.state === 'LevelComplete') {
@@ -98,22 +102,46 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initialize Game
   const game = new Match3Game(container, handleUIUpdate);
 
-  // Event Listeners
-  btnSound.addEventListener('click', () => game.toggleSound());
-  btnSkin.addEventListener('click', () => game.toggleSkin());
-  btnRestart.addEventListener('click', () => game.restartLevel());
-  btnPrev.addEventListener('click', () => game.prevLevel());
-  btnNext.addEventListener('click', () => game.nextLevel());
+  // User gesture to begin orchestral fantasy BGM
+  const onFirstInteraction = () => {
+    sound.userGesture();
+    window.removeEventListener('pointerdown', onFirstInteraction);
+  };
+  window.addEventListener('pointerdown', onFirstInteraction);
 
-  btnHelp.addEventListener('click', () => {
-    if (game.core.config.description) {
-      uiTutorialText.textContent = game.core.config.description;
-      uiTutorial.style.display = 'flex';
-    }
+  // Event Listeners
+  btnSound.addEventListener('click', (e) => {
+    e.stopPropagation();
+    game.toggleMute();
   });
 
-  uiTutorialClose.addEventListener('click', () => {
-    uiTutorial.style.display = 'none';
+  volumeSlider.addEventListener('input', (e) => {
+    e.stopPropagation();
+    const val = Number((e.target as HTMLInputElement).value) / 100;
+    if (sound.isMuted) {
+      sound.setMuted(false);
+    }
+    game.setVolume(val);
+  });
+
+  btnSkin.addEventListener('click', (e) => {
+    e.stopPropagation();
+    game.toggleSkin();
+  });
+
+  btnRestart.addEventListener('click', (e) => {
+    e.stopPropagation();
+    game.restartLevel();
+  });
+
+  btnPrev.addEventListener('click', (e) => {
+    e.stopPropagation();
+    game.prevLevel();
+  });
+
+  btnNext.addEventListener('click', (e) => {
+    e.stopPropagation();
+    game.nextLevel();
   });
 
   // Modal actions
