@@ -177,11 +177,13 @@ export class CoreEngine implements GridCore {
     } else {
       let cascade = 1;
       let matches = initialMatches;
-      while (matches.length > 0) {
+      const MAX_CASCADES = 6;
+      while (matches.length > 0 && cascade <= MAX_CASCADES) {
         this.resolveWave(matches, cascade, steps);
         this.applyGravity(steps);
-        this.applyRefill(steps);
+        this.applyRefill(steps, cascade);
         cascade++;
+        if (cascade > MAX_CASCADES) break;
         matches = evaluateMatches(this.board); // Cascades do not pass swapCells
       }
     }
@@ -420,11 +422,13 @@ export class CoreEngine implements GridCore {
     // Check subsequent cascades
     cascade++;
     let matches = evaluateMatches(this.board);
-    while (matches.length > 0) {
+    const MAX_FUSION_CASCADES = 6;
+    while (matches.length > 0 && cascade <= MAX_FUSION_CASCADES) {
       this.resolveWave(matches, cascade, steps);
       this.applyGravity(steps);
-      this.applyRefill(steps);
+      this.applyRefill(steps, cascade);
       cascade++;
+      if (cascade > MAX_FUSION_CASCADES) break;
       matches = evaluateMatches(this.board);
     }
   }
@@ -657,9 +661,56 @@ export class CoreEngine implements GridCore {
   }
 
   /**
-   * Refills empty cells at the top of each column using the column's PRNG stream.
+   * Checks whether placing a gem of color at (r, c) would immediately complete a 3-in-a-row.
    */
-  private applyRefill(steps: Step[]): void {
+  private wouldCreateMatch(r: number, c: number, color: GemColor): boolean {
+    const rows = this.board.length;
+    const cols = this.board[0].length;
+
+    // Check down 2
+    if (r + 2 < rows) {
+      const g1 = this.board[r + 1][c];
+      const g2 = this.board[r + 2][c];
+      if (g1 && g2 && g1.kind !== 'rainbow' && g2.kind !== 'rainbow' && g1.color === color && g2.color === color) {
+        return true;
+      }
+    }
+
+    // Check left 2
+    if (c >= 2) {
+      const g1 = this.board[r][c - 1];
+      const g2 = this.board[r][c - 2];
+      if (g1 && g2 && g1.kind !== 'rainbow' && g2.kind !== 'rainbow' && g1.color === color && g2.color === color) {
+        return true;
+      }
+    }
+
+    // Check right 2
+    if (c + 2 < cols) {
+      const g1 = this.board[r][c + 1];
+      const g2 = this.board[r][c + 2];
+      if (g1 && g2 && g1.kind !== 'rainbow' && g2.kind !== 'rainbow' && g1.color === color && g2.color === color) {
+        return true;
+      }
+    }
+
+    // Check horizontal sandwich (left and right)
+    if (c >= 1 && c + 1 < cols) {
+      const g1 = this.board[r][c - 1];
+      const g2 = this.board[r][c + 1];
+      if (g1 && g2 && g1.kind !== 'rainbow' && g2.kind !== 'rainbow' && g1.color === color && g2.color === color) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Refills empty cells at the top of each column using the column's PRNG stream.
+   * On cascade >= 2, dampens refills by avoiding immediate automatic 3-in-a-rows.
+   */
+  private applyRefill(steps: Step[], cascade: number = 1): void {
     const rows = this.board.length;
     const cols = this.board[0].length;
     const spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[] = [];
@@ -676,7 +727,20 @@ export class CoreEngine implements GridCore {
         const colRng = this.rngManager.getSpawnRng(c);
         let dropIndex = emptyCount;
         for (let r = emptyCount - 1; r >= 0; r--) {
-          const color = colRng.int(this.config.colors) as GemColor;
+          const allowedColors: GemColor[] = [];
+          for (let clr = 0; clr < this.config.colors; clr++) {
+            const gClr = clr as GemColor;
+            // On cascade >= 2, exclude colors that create runaway automatic matches
+            if (cascade < 2 || !this.wouldCreateMatch(r, c, gClr)) {
+              allowedColors.push(gClr);
+            }
+          }
+
+          const color: GemColor =
+            allowedColors.length > 0
+              ? allowedColors[colRng.int(allowedColors.length)]
+              : (colRng.int(this.config.colors) as GemColor);
+
           const newGem: Gem = {
             id: this.nextId(),
             kind: 'normal',

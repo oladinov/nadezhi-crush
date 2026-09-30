@@ -33,9 +33,16 @@ export class TimelinePlayer {
   /**
    * Replays the deterministic Step timeline asynchronously.
    */
-  public async play(steps: Step[], expectedSnapshot?: Readonly<Board>): Promise<void> {
+  public async play(
+    steps: Step[],
+    expectedSnapshot?: Readonly<Board>,
+    onStepComplete?: (step: Step) => void
+  ): Promise<void> {
     for (const step of steps) {
       await this.executeStep(step);
+      if (onStepComplete) {
+        onStepComplete(step);
+      }
     }
 
     // Safety net: verify view against core snapshot
@@ -188,34 +195,72 @@ export class TimelinePlayer {
     });
   }
 
-  private handleDetonate(step: Extract<Step, { type: 'detonate' }>, done: () => void) {
+  private async handleDetonate(step: Extract<Step, { type: 'detonate' }>, done: () => void) {
     const originPos = this.scene.cellToWorld(step.origin.r, step.origin.c);
     const tier = (step.gem.kind === 'bomb' ? step.gem.tier : 1) as 1 | 2;
 
+    // 1. Telegraph stage: Bomb glows and pulses with ignition sound
+    sound.playBombIgnite();
+    const bombView = this.gemManager.views.get(step.gem.id);
+    if (bombView) {
+      gsap.to(bombView.group.scale, {
+        x: 1.35,
+        y: 1.35,
+        duration: 0.16,
+        yoyo: true,
+        repeat: 1,
+        ease: 'power2.out',
+      });
+    }
+    await this.fx.showBombIgnition(originPos, tier);
+
+    // 2. Blast detonation
     sound.playBombExplosion(tier);
-    this.fx.shake(tier === 2 ? 3.5 : 2.0);
+    this.fx.shake(tier === 2 ? 3.5 : 2.2);
 
     if (tier === 2) {
-      this.fx.spawnShockwave(originPos, 3.5, 0.45);
+      this.fx.spawnShockwave(originPos, 3.8, 0.45);
     }
 
     const colorHex =
       step.gem.kind === 'bomb'
         ? this.gemManager.COLOR_HEXES[step.gem.color]
         : 0xffffff;
-    this.fx.spawnBurst(originPos, colorHex, tier === 2 ? 22 : 14, 1.4);
+    this.fx.spawnBurst(originPos, colorHex, tier === 2 ? 24 : 15, 1.4);
 
-    // Brief timeout to let the blast initiate before clearing
-    setTimeout(done, 120);
+    done();
   }
 
-  private handleClear(step: Extract<Step, { type: 'clear' }>, done: () => void) {
+  private async handleClear(step: Extract<Step, { type: 'clear' }>, done: () => void) {
     if (step.cause === 'fusion') {
       sound.playBombExplosion(2);
-      this.fx.shake(3.0);
+      this.fx.shake(3.2);
+
+      // Rainbow + Rainbow full board wipe: expanding ring across whole board
+      if (step.cells.length > 20) {
+        this.fx.spawnShockwave(new THREE.Vector3(0, 0, 0.25), 7.0, 0.75);
+      }
     } else if (step.cause === 'rainbowTarget') {
       sound.playRainbowBeam();
-      this.fx.shake(1.8);
+      this.fx.shake(2.0);
+
+      // Find rainbow position
+      const rainbowItem = step.cells.find((c) => c.gem.kind === 'rainbow');
+      const rainbowPos = rainbowItem
+        ? this.scene.cellToWorld(rainbowItem.cell.r, rainbowItem.cell.c)
+        : this.scene.cellToWorld(step.cells[0].cell.r, step.cells[0].cell.c);
+
+      const targetPositions = step.cells
+        .filter((c) => c.gem.kind !== 'rainbow')
+        .map((c) => this.scene.cellToWorld(c.cell.r, c.cell.c));
+
+      const targetGem = step.cells.find((c) => c.gem.kind !== 'rainbow')?.gem;
+      const colorHex = targetGem && targetGem.kind !== 'rainbow'
+        ? this.gemManager.COLOR_HEXES[targetGem.color]
+        : 0xffffff;
+
+      // Radiant prismatic laser beams shoot out to each target gem!
+      await this.fx.spawnRainbowPrismaticBeams(rainbowPos, targetPositions, colorHex);
     } else {
       sound.playMatch(step.cascade);
       this.fx.shake(Math.min(2.5, 0.5 + step.cells.length * 0.15));

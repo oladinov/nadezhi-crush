@@ -201,33 +201,145 @@ export class FXManager {
   }
 
   /**
+   * Visual ignition telegraph: highlights the bomb and its affected area right before detonating!
+   */
+  public showBombIgnition(center: THREE.Vector3, tier: 1 | 2): Promise<void> {
+    return new Promise((resolve) => {
+      // 1. Center fiery ring
+      const ringGeo = new THREE.RingGeometry(0.2, 0.48, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xfbbf24, // Bright amber
+        side: THREE.DoubleSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.95,
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.set(center.x, center.y, 0.35);
+      this.scene.fxGroup.add(ring);
+
+      // 2. Area boundary box (3x3 or 5x5)
+      const size = tier === 1 ? 2.9 : 4.9;
+      const boxGeo = new THREE.PlaneGeometry(size, size);
+      const boxMat = new THREE.MeshBasicMaterial({
+        color: 0xf59e0b,
+        side: THREE.DoubleSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.22,
+      });
+      const box = new THREE.Mesh(boxGeo, boxMat);
+      box.position.set(center.x, center.y, 0.05);
+      this.scene.fxGroup.add(box);
+
+      // Animate charge
+      gsap.fromTo(
+        ring.scale,
+        { x: 0.6, y: 0.6 },
+        {
+          x: 1.5,
+          y: 1.5,
+          duration: 0.26,
+          ease: 'power2.out',
+        }
+      );
+
+      gsap.to(boxMat, {
+        opacity: 0.45,
+        duration: 0.12,
+        yoyo: true,
+        repeat: 1,
+        ease: 'sine.inOut',
+      });
+
+      gsap.to(ringMat, {
+        opacity: 0,
+        duration: 0.26,
+        ease: 'power1.in',
+        onComplete: () => {
+          if (ring.parent) ring.parent.remove(ring);
+          if (box.parent) box.parent.remove(box);
+          ringGeo.dispose();
+          ringMat.dispose();
+          boxGeo.dispose();
+          boxMat.dispose();
+          resolve();
+        },
+      });
+    });
+  }
+
+  /**
+   * Radiant rainbow prismatic beams that shoot out from the rainbow gem to all targets.
+   */
+  public spawnRainbowPrismaticBeams(
+    fromPos: THREE.Vector3,
+    targetPositions: THREE.Vector3[],
+    colorHex = 0xffffff
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      if (targetPositions.length === 0) {
+        resolve();
+        return;
+      }
+
+      // Shockwave burst from rainbow center
+      this.spawnShockwave(fromPos, 2.0, 0.35);
+
+      const promises: Promise<void>[] = targetPositions.map((toPos) => {
+        return this.spawnLaserBeam(fromPos, toPos, colorHex);
+      });
+
+      Promise.all(promises).then(() => resolve());
+    });
+  }
+
+  /**
    * Spawns laser beam line from rainbow cell to target cell.
    */
   public spawnLaserBeam(fromPos: THREE.Vector3, toPos: THREE.Vector3, colorHex = 0xffffff): Promise<void> {
     return new Promise((resolve) => {
       const dir = new THREE.Vector3().subVectors(toPos, fromPos);
       const len = dir.length();
-      const geom = new THREE.PlaneGeometry(0.12, len);
+      if (len < 0.01) {
+        resolve();
+        return;
+      }
+
+      const geom = new THREE.PlaneGeometry(0.14, len);
       const mat = new THREE.MeshBasicMaterial({
         color: colorHex,
         transparent: true,
         blending: THREE.AdditiveBlending,
-        opacity: 0.9,
+        opacity: 0.95,
       });
       const beam = new THREE.Mesh(geom, mat);
 
       const mid = new THREE.Vector3().addVectors(fromPos, toPos).multiplyScalar(0.5);
-      beam.position.set(mid.x, mid.y, 0.3);
+      beam.position.set(mid.x, mid.y, 0.32);
       beam.rotation.z = Math.atan2(dir.y, dir.x) - Math.PI / 2;
 
       this.scene.fxGroup.add(beam);
 
+      // Target impact halo
+      const hitGeo = new THREE.RingGeometry(0.2, 0.45, 24);
+      const hitMat = new THREE.MeshBasicMaterial({
+        color: colorHex,
+        side: THREE.DoubleSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.85,
+      });
+      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+      hitMesh.position.set(toPos.x, toPos.y, 0.35);
+      this.scene.fxGroup.add(hitMesh);
+
       gsap.fromTo(
         beam.scale,
-        { x: 0.2, y: 1 },
+        { x: 0.1, y: 1 },
         {
-          x: 1.8,
-          duration: 0.2,
+          x: 2.2,
+          duration: 0.22,
           ease: 'power2.out',
           onComplete: () => {
             gsap.to(mat, {
@@ -237,9 +349,25 @@ export class FXManager {
                 if (beam.parent) beam.parent.remove(beam);
                 geom.dispose();
                 mat.dispose();
-                resolve();
               },
             });
+          },
+        }
+      );
+
+      gsap.fromTo(
+        hitMesh.scale,
+        { x: 0.5, y: 0.5 },
+        {
+          x: 1.4,
+          y: 1.4,
+          duration: 0.32,
+          ease: 'power2.out',
+          onComplete: () => {
+            if (hitMesh.parent) hitMesh.parent.remove(hitMesh);
+            hitGeo.dispose();
+            hitMat.dispose();
+            resolve();
           },
         }
       );

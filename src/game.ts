@@ -131,8 +131,16 @@ export class Match3Game {
     // Core resolves entire turn synchronously and deterministically
     const result: TurnResult = this.core.resolveMove(a, b);
 
-    // View replays steps asynchronously with GSAP
-    await this.player.play(result.steps, this.core.snapshot);
+    // Running score for real-time HUD updates on each cascade wave
+    let displayedScore = this.core.progress.score - result.pointsGained;
+
+    // View replays steps asynchronously with GSAP and real-time score increments
+    await this.player.play(result.steps, this.core.snapshot, (step) => {
+      if (step.type === 'clear') {
+        displayedScore += step.points;
+        this.notifyUI(displayedScore);
+      }
+    });
 
     if (result.outcome === 'won') {
       this.state = 'LevelComplete';
@@ -204,8 +212,10 @@ export class Match3Game {
     this.notifyUI();
   }
 
-  public notifyUI() {
+  public notifyUI(customScore?: number) {
     if (!this.onUIUpdateCallback) return;
+
+    const currentScore = customScore !== undefined ? customScore : this.core.progress.score;
 
     const goalsData = this.core.config.goals.map((g) => {
       let desc = '';
@@ -215,7 +225,7 @@ export class Match3Game {
       switch (g.type) {
         case 'score':
           desc = `Puntuación`;
-          cur = this.core.progress.score;
+          cur = currentScore;
           target = g.target;
           break;
         case 'collect': {
@@ -260,7 +270,7 @@ export class Match3Game {
       title: this.core.config.title || `Nivel ${this.currentLevel}`,
       description: this.core.config.description || '',
       movesLeft: this.core.movesLeft,
-      score: this.core.progress.score,
+      score: currentScore,
       goals: goalsData,
       state: this.state,
       skinMode: this.gemManager.skinMode,
