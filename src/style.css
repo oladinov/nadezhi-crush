@@ -36,7 +36,10 @@ html, body {
   display: flex;
   flex-direction: column;
   position: relative;
-  background: url('/fantasy_plains.jpg') center center / cover no-repeat;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  transition: background-image 0.8s ease-in-out;
 }
 
 #app::before {
@@ -100,6 +103,13 @@ html, body {
   font-size: 1.05rem;
   font-weight: 800;
   color: #ffffff;
+}
+
+.biome-name {
+  font-size: 0.72rem;
+  color: #a7f3d0;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .moves-badge {
@@ -267,6 +277,53 @@ html, body {
 
 .goal-chip.completed .check-icon {
   display: inline;
+}
+
+.goal-chip-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.goal-chip-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+/* FLOATING TOAST BANNER */
+.toast-banner {
+  position: absolute;
+  top: 76px;
+  right: 20px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  border-radius: 9999px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.toast-banner.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+#toast-icon {
+  font-size: 1.1rem;
 }
 
 /* CANVAS CONTAINER */

@@ -199,6 +199,25 @@ export class TimelinePlayer {
     const originPos = this.scene.cellToWorld(step.origin.r, step.origin.c);
     const tier = (step.gem.kind === 'bomb' ? step.gem.tier : 1) as 1 | 2;
 
+    // 0. Illuminate what triggered this bomb (match vs chain explosion)
+    if (step.trigger?.type === 'match') {
+      const matchPositions = step.trigger.matchCells.map((c) =>
+        this.scene.cellToWorld(c.r, c.c)
+      );
+      const matchColorHex =
+        step.gem.kind === 'bomb'
+          ? this.gemManager.COLOR_HEXES[step.gem.color]
+          : 0xf59e0b;
+      await this.fx.showTriggerMatch(matchPositions, originPos, matchColorHex);
+    } else if (step.trigger?.type === 'blast') {
+      const sourcePos = this.scene.cellToWorld(
+        step.trigger.sourceCell.r,
+        step.trigger.sourceCell.c
+      );
+      sound.playChainSpark();
+      await this.fx.showChainBlastBeam(sourcePos, originPos);
+    }
+
     // 1. Telegraph stage: Bomb glows and pulses with ignition sound
     sound.playBombIgnite();
     const bombView = this.gemManager.views.get(step.gem.id);

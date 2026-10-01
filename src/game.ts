@@ -1,13 +1,13 @@
 import confetti from 'canvas-confetti';
 import { CoreEngine } from './core/resolver';
-import { Cell, TurnResult } from './core/types';
+import { Cell, GemColor, TurnResult } from './core/types';
 import { getLevelConfig } from './levels/generator';
 import { GameScene } from './view/scene';
 import { GemSkinMode, GemViewManager } from './view/gemViews';
 import { FXManager } from './view/fx';
 import { InputManager } from './view/input';
 import { TimelinePlayer } from './view/player';
-import { sound } from './audio/sound';
+import { sound, MusicTrack } from './audio/sound';
 
 export type GameState =
   | 'Idle'
@@ -17,22 +17,85 @@ export type GameState =
   | 'LevelComplete'
   | 'LevelFailed';
 
+export interface ColorMeta {
+  color: GemColor;
+  emoteName: string;
+  emoteIcon: string;
+  jewelName: string;
+  jewelIcon: string;
+  colorHex: string;
+}
+
+export const COLOR_METADATA: ColorMeta[] = [
+  { color: 0, emoteName: 'Payasito', emoteIcon: '/emotes/1103355444124209192.webp', jewelName: 'Rubí', jewelIcon: '🔴', colorHex: '#ef4444' },
+  { color: 1, emoteName: 'Asustada', emoteIcon: '/emotes/1103355458179309619.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
+  { color: 2, emoteName: 'Gatito Amor', emoteIcon: '/emotes/1142187365251686491.webp', jewelName: 'Esmeralda', jewelIcon: '🟢', colorHex: '#10b981' },
+  { color: 3, emoteName: 'Gatito GG', emoteIcon: '/emotes/1536895951950577814.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
+  { color: 4, emoteName: 'Labure', emoteIcon: '/emotes/1536895958728835182.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
+];
+
+export interface BiomeInfo {
+  name: string;
+  image: string;
+  desc: string;
+}
+
+export function getLevelBiome(level: number): BiomeInfo {
+  if (level <= 4) {
+    return {
+      name: 'Praderas del Valle',
+      image: '/fantasy_plains.jpg',
+      desc: 'Campos verdes y cielo despejado de la Comarca.',
+    };
+  } else if (level <= 8) {
+    return {
+      name: 'Colinas del Atardecer',
+      image: '/fantasy_sunset.jpg',
+      desc: 'Luz dorada sobre pacíficas aldeas con chimeneas humeantes.',
+    };
+  } else if (level <= 12) {
+    return {
+      name: 'Caverna de Cristales',
+      image: '/fantasy_cavern.jpg',
+      desc: 'Profundidades ancestrales iluminadas por antorchas y gemas místicas.',
+    };
+  } else if (level <= 16) {
+    return {
+      name: 'Bosque de las Luciérnagas',
+      image: '/fantasy_night.jpg',
+      desc: 'Noche estrellada bajo las ramas del Gran Árbol sagrado.',
+    };
+  } else {
+    return {
+      name: 'Monte del Destino',
+      image: '/fantasy_volcano.jpg',
+      desc: 'Tierras volcánicas con ríos de fuego y desafíos ardientes.',
+    };
+  }
+}
+
+export interface UIGoal {
+  description: string;
+  current: number;
+  target: number;
+  completed: boolean;
+  icon: string;
+  iconType: 'image' | 'text';
+}
+
 export interface UIStateUpdate {
   level: number;
   title: string;
   description: string;
   movesLeft: number;
   score: number;
-  goals: {
-    description: string;
-    current: number;
-    target: number;
-    completed: boolean;
-  }[];
+  goals: UIGoal[];
   state: GameState;
   skinMode: GemSkinMode;
   isMuted: boolean;
   volume: number;
+  biome: BiomeInfo;
+  currentTrack: MusicTrack;
 }
 
 export class Match3Game {
@@ -212,40 +275,65 @@ export class Match3Game {
     this.notifyUI();
   }
 
+  public nextMusicTrack(): MusicTrack {
+    const track = sound.nextTrack();
+    this.notifyUI();
+    return track;
+  }
+
   public notifyUI(customScore?: number) {
     if (!this.onUIUpdateCallback) return;
 
     const currentScore = customScore !== undefined ? customScore : this.core.progress.score;
+    const isEmotes = this.gemManager.skinMode === 'emotes';
 
-    const goalsData = this.core.config.goals.map((g) => {
+    const goalsData: UIGoal[] = this.core.config.goals.map((g) => {
       let desc = '';
       let cur = 0;
       let target = 0;
+      let icon = '';
+      let iconType: 'image' | 'text' = 'text';
 
       switch (g.type) {
         case 'score':
-          desc = `Puntuación`;
+          desc = `Puntos`;
+          icon = '⭐';
+          iconType = 'text';
           cur = currentScore;
           target = g.target;
           break;
         case 'collect': {
-          const names = ['Rojo', 'Azul', 'Verde', 'Ámbar', 'Púrpura'];
-          desc = `Gemas: ${names[g.color]}`;
+          const meta = COLOR_METADATA[g.color];
+          if (isEmotes) {
+            desc = meta.emoteName;
+            icon = meta.emoteIcon;
+            iconType = 'image';
+          } else {
+            desc = `Joya ${meta.jewelName}`;
+            icon = meta.jewelIcon;
+            iconType = 'text';
+          }
           cur = this.core.progress.collected[g.color] || 0;
           target = g.count;
           break;
         }
         case 'detonate':
-          desc = `Bombas activadas`;
+          desc = `Detonar Bombas`;
+          icon = '💣';
+          iconType = 'text';
           cur = this.core.progress.detonated;
           target = g.count;
           break;
         case 'create':
           if (g.kind === 'rainbow') {
             desc = `Crear Arcoíris`;
+            icon = '🌈';
+            iconType = 'text';
             cur = this.core.progress.created.rainbow;
           } else {
-            desc = `Crear Bomba ${g.tier ? `Tier ${g.tier}` : ''}`.trim();
+            desc = g.tier === 1 ? 'Crear Bomba 3×3' : g.tier === 2 ? 'Crear Bomba 5×5' : 'Crear Bomba';
+            icon = g.tier === 2 ? '💥' : '💣';
+            iconType = 'text';
             cur =
               g.tier === 1
                 ? this.core.progress.created.bomb1
@@ -262,8 +350,12 @@ export class Match3Game {
         current: Math.min(cur, target),
         target,
         completed: cur >= target,
+        icon,
+        iconType,
       };
     });
+
+    const biome = getLevelBiome(this.currentLevel);
 
     this.onUIUpdateCallback({
       level: this.currentLevel,
@@ -276,6 +368,8 @@ export class Match3Game {
       skinMode: this.gemManager.skinMode,
       isMuted: sound.isMuted,
       volume: sound.masterVolume,
+      biome,
+      currentTrack: sound.currentTrack,
     });
   }
 

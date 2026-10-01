@@ -46,6 +46,11 @@ export interface LevelConfig {
 // ---- Línea de tiempo que la vista reproduce ----
 export type ClearCause = 'match' | 'blast' | 'rainbowTarget' | 'fusion';
 
+export type DetonateTrigger =
+  | { type: 'match'; matchCells: Cell[] }
+  | { type: 'blast'; sourceCell: Cell }
+  | { type: 'fusion' };
+
 export type Step =
   | { type: 'swap'; a: Cell; b: Cell; valid: boolean }
   | { type: 'transform'; cells: Cell[]; to: Gem[] } // arcoíris+bomba
@@ -56,7 +61,14 @@ export type Step =
       cascade: number;
       points: number;
     }
-  | { type: 'detonate'; origin: Cell; gem: Gem; affected: Cell[]; wave: number }
+  | {
+      type: 'detonate';
+      origin: Cell;
+      gem: Gem;
+      affected: Cell[];
+      wave: number;
+      trigger?: DetonateTrigger;
+    }
   | { type: 'spawnSpecial'; cell: Cell; gem: Gem; from: Cell[] }
   | { type: 'gravity'; moves: { id: number; from: Cell; to: Cell }[] }
   | { type: 'refill'; spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[] }

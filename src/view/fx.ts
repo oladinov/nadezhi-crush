@@ -270,6 +270,150 @@ export class FXManager {
   }
 
   /**
+   * Illuminates the 3+ matching gems that activated this bomb before detonating!
+   * Shows a bright connecting line / ring on each matched gem leading into the bomb.
+   */
+  public showTriggerMatch(
+    matchPositions: THREE.Vector3[],
+    bombPos: THREE.Vector3,
+    colorHex = 0xf59e0b
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      const group = new THREE.Group();
+      this.scene.fxGroup.add(group);
+
+      const ringGeo = new THREE.RingGeometry(0.24, 0.46, 24);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: colorHex,
+        side: THREE.DoubleSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.95,
+      });
+
+      matchPositions.forEach((pos) => {
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.set(pos.x, pos.y, 0.32);
+        group.add(ring);
+
+        // Connector line towards bomb if distant
+        const dir = new THREE.Vector3().subVectors(bombPos, pos);
+        const dist = dir.length();
+        if (dist > 0.1) {
+          const lineGeo = new THREE.PlaneGeometry(0.08, dist);
+          const lineMat = new THREE.MeshBasicMaterial({
+            color: colorHex,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            opacity: 0.8,
+          });
+          const line = new THREE.Mesh(lineGeo, lineMat);
+          const mid = new THREE.Vector3().addVectors(pos, bombPos).multiplyScalar(0.5);
+          line.position.set(mid.x, mid.y, 0.3);
+          line.rotation.z = Math.atan2(dir.y, dir.x) - Math.PI / 2;
+          group.add(line);
+        }
+      });
+
+      gsap.fromTo(
+        group.scale,
+        { x: 0.85, y: 0.85 },
+        {
+          x: 1.25,
+          y: 1.25,
+          duration: 0.22,
+          yoyo: true,
+          repeat: 1,
+          ease: 'power2.out',
+          onComplete: () => {
+            gsap.to(ringMat, {
+              opacity: 0,
+              duration: 0.1,
+              onComplete: () => {
+                if (group.parent) group.parent.remove(group);
+                ringGeo.dispose();
+                ringMat.dispose();
+                resolve();
+              },
+            });
+          },
+        }
+      );
+    });
+  }
+
+  /**
+   * Draws a lightning spark / shockwave streak from trigger bomb to chained bomb.
+   */
+  public showChainBlastBeam(fromPos: THREE.Vector3, toPos: THREE.Vector3): Promise<void> {
+    return new Promise((resolve) => {
+      const dir = new THREE.Vector3().subVectors(toPos, fromPos);
+      const len = dir.length();
+      if (len < 0.05) {
+        resolve();
+        return;
+      }
+
+      const geom = new THREE.PlaneGeometry(0.12, len);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xfef08a, // Electric bright yellow
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.95,
+      });
+      const beam = new THREE.Mesh(geom, mat);
+      const mid = new THREE.Vector3().addVectors(fromPos, toPos).multiplyScalar(0.5);
+      beam.position.set(mid.x, mid.y, 0.35);
+      beam.rotation.z = Math.atan2(dir.y, dir.x) - Math.PI / 2;
+      this.scene.fxGroup.add(beam);
+
+      // Target impact spark
+      const sparkGeo = new THREE.RingGeometry(0.15, 0.35, 16);
+      const sparkMat = new THREE.MeshBasicMaterial({
+        color: 0xf97316,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.9,
+      });
+      const spark = new THREE.Mesh(sparkGeo, sparkMat);
+      spark.position.set(toPos.x, toPos.y, 0.38);
+      this.scene.fxGroup.add(spark);
+
+      gsap.fromTo(
+        beam.scale,
+        { x: 0.2, y: 1 },
+        {
+          x: 1.8,
+          duration: 0.14,
+          ease: 'power2.out',
+          onComplete: () => {
+            if (beam.parent) beam.parent.remove(beam);
+            geom.dispose();
+            mat.dispose();
+          },
+        }
+      );
+
+      gsap.fromTo(
+        spark.scale,
+        { x: 0.5, y: 0.5 },
+        {
+          x: 1.5,
+          y: 1.5,
+          duration: 0.2,
+          ease: 'power1.out',
+          onComplete: () => {
+            if (spark.parent) spark.parent.remove(spark);
+            sparkGeo.dispose();
+            sparkMat.dispose();
+            resolve();
+          },
+        }
+      );
+    });
+  }
+
+  /**
    * Radiant rainbow prismatic beams that shoot out from the rainbow gem to all targets.
    */
   public spawnRainbowPrismaticBeams(

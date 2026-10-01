@@ -3,6 +3,20 @@
  * Real acoustic fantasy instrumental music and procedural sound effects.
  */
 
+export interface MusicTrack {
+  id: string;
+  name: string;
+  artist: string;
+  file: string;
+}
+
+export const FANTASY_PLAYLIST: MusicTrack[] = [
+  { id: 'folk_round', name: 'Fiesta en la Comarca', artist: 'Kevin MacLeod (Acoustic Folk)', file: '/fantasy_bgm.mp3' },
+  { id: 'minstrel', name: 'Gremio de Juglares', artist: 'Kevin MacLeod (Lute & Flute)', file: '/music_minstrel.mp3' },
+  { id: 'celtic', name: 'Brisas Celtas', artist: 'Kevin MacLeod (Celtic Guitars)', file: '/music_celtic.mp3' },
+  { id: 'village', name: 'Posada del Dragón', artist: 'Kevin MacLeod (Village Consort)', file: '/music_village.mp3' },
+];
+
 class SoundManager {
   private ctx: AudioContext | null = null;
   public masterVolume: number = 0.7;
@@ -16,19 +30,57 @@ class SoundManager {
   // Real acoustic fantasy BGM audio element
   private bgmAudio: HTMLAudioElement | null = null;
   public isBgmPlaying: boolean = false;
+  private currentTrackIndex: number = 0;
 
   constructor() {
     this.initAudioElement();
   }
 
+  public get currentTrack(): MusicTrack {
+    return FANTASY_PLAYLIST[this.currentTrackIndex];
+  }
+
+  public get playlist(): MusicTrack[] {
+    return FANTASY_PLAYLIST;
+  }
+
   private initAudioElement() {
     try {
-      this.bgmAudio = new Audio('/fantasy_bgm.mp3');
+      this.bgmAudio = new Audio(FANTASY_PLAYLIST[this.currentTrackIndex].file);
       this.bgmAudio.loop = true;
       this.bgmAudio.preload = 'auto';
       this.updateBgmVolume();
     } catch {
       // Audio element fallback
+    }
+  }
+
+  public nextTrack(): MusicTrack {
+    this.currentTrackIndex = (this.currentTrackIndex + 1) % FANTASY_PLAYLIST.length;
+    this.loadTrack(this.currentTrackIndex);
+    return this.currentTrack;
+  }
+
+  public prevTrack(): MusicTrack {
+    this.currentTrackIndex = (this.currentTrackIndex - 1 + FANTASY_PLAYLIST.length) % FANTASY_PLAYLIST.length;
+    this.loadTrack(this.currentTrackIndex);
+    return this.currentTrack;
+  }
+
+  public loadTrack(index: number) {
+    this.currentTrackIndex = index % FANTASY_PLAYLIST.length;
+    const track = FANTASY_PLAYLIST[this.currentTrackIndex];
+    const wasPlaying = this.isBgmPlaying;
+    if (this.bgmAudio) {
+      this.bgmAudio.pause();
+      this.bgmAudio.src = track.file;
+      this.bgmAudio.load();
+      this.updateBgmVolume();
+      if (wasPlaying) {
+        this.bgmAudio.play().then(() => {
+          this.isBgmPlaying = true;
+        }).catch(() => {});
+      }
     }
   }
 
@@ -264,6 +316,23 @@ class SoundManager {
 
     sub.start(now);
     sub.stop(now + dur);
+  }
+
+  public playChainSpark() {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.1);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(gain);
+    gain.connect(this.sfxGainNode);
+    osc.start(now);
+    osc.stop(now + 0.1);
   }
 
   public playRainbowBeam() {

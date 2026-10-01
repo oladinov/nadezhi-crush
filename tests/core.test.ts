@@ -276,3 +276,97 @@ describe('Replay and Determinism', () => {
     expect(run1.scores).toEqual(run2.scores);
   });
 });
+
+describe('Bomb Matching and Detonate Triggers', () => {
+  it('detonates a bomb when it is in a 3-in-a-line match (e.g. middle of 3)', () => {
+    const board = createEmptyBoard(6, 6);
+    let id = 1;
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 6; c++) {
+        board[r][c] = { id: id++, kind: 'normal', color: 2 };
+      }
+    }
+    // Row 5 has 3 in a line of color 0, with a bomb in the middle at (5, 2)
+    board[5][1] = { id: 601, kind: 'normal', color: 0 };
+    board[5][2] = { id: 602, kind: 'bomb', color: 0, tier: 1 };
+    board[5][3] = { id: 603, kind: 'normal', color: 1 };
+    board[4][3] = { id: 604, kind: 'normal', color: 0 }; // Swapping (4,3) and (5,3) completes the 3-line
+
+    const config: LevelConfig = {
+      level: 101,
+      seed: 101,
+      rows: 6,
+      cols: 6,
+      colors: 4,
+      moves: 10,
+      goals: [{ type: 'detonate', count: 1 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    const res = engine.resolveMove({ r: 4, c: 3 }, { r: 5, c: 3 });
+    expect(res.accepted).toBe(true);
+
+    // Verify bomb detonated with trigger 'match'
+    const detonateStep = res.steps.find((s) => s.type === 'detonate' && s.gem.id === 602);
+    expect(detonateStep).toBeDefined();
+    if (detonateStep && detonateStep.type === 'detonate') {
+      expect(detonateStep.trigger?.type).toBe('match');
+      expect(detonateStep.affected.length).toBeGreaterThan(0);
+    }
+    expect(res.progress.detonated).toBeGreaterThanOrEqual(1);
+  });
+
+  it('records correct triggers for bomb detonation: match vs blast', () => {
+    const board = createEmptyBoard(6, 6);
+    let id = 1;
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 6; c++) {
+        board[r][c] = { id: id++, kind: 'normal', color: ((r + c) % 3) as any };
+      }
+    }
+    // Place a bomb at (2, 2) of color 0
+    board[2][2] = { id: 501, kind: 'bomb', color: 0, tier: 1 };
+    // Place normal gems of color 0 at (2, 1) and (2, 4)
+    board[2][1] = { id: 502, kind: 'normal', color: 0 };
+    board[2][4] = { id: 503, kind: 'normal', color: 0 };
+    // Place normal gem at (2, 3) with color 1, so swapping (2,3) with (2,4) creates a 3-match of color 0 at (2,1), (2,2), (2,3)
+    board[2][3] = { id: 504, kind: 'normal', color: 1 };
+
+    // Also place another bomb at (2, 0) within the 3x3 blast radius of (2, 2)
+    board[2][0] = { id: 505, kind: 'bomb', color: 2, tier: 1 };
+
+    const config: LevelConfig = {
+      level: 102,
+      seed: 102,
+      rows: 6,
+      cols: 6,
+      colors: 4,
+      moves: 10,
+      goals: [{ type: 'detonate', count: 2 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    const res = engine.resolveMove({ r: 2, c: 3 }, { r: 2, c: 4 });
+    expect(res.accepted).toBe(true);
+
+    const detonateSteps = res.steps.filter((s) => s.type === 'detonate');
+    expect(detonateSteps.length).toBeGreaterThanOrEqual(1);
+
+    // Primary bomb (501) was triggered by match
+    const primary = detonateSteps.find((s) => s.type === 'detonate' && s.gem.id === 501);
+    expect(primary).toBeDefined();
+    if (primary && primary.type === 'detonate') {
+      expect(primary.trigger).toBeDefined();
+      expect(primary.trigger?.type).toBe('match');
+    }
+
+    // Chained bomb (505) was triggered by blast
+    const chained = detonateSteps.find((s) => s.type === 'detonate' && s.gem.id === 505);
+    if (chained && chained.type === 'detonate') {
+      expect(chained.trigger).toBeDefined();
+      expect(chained.trigger?.type).toBe('blast');
+    }
+  });
+});

@@ -13,6 +13,11 @@ describe('Curated Levels', () => {
       expect(cfg.cols).toBe(8);
       expect(cfg.moves).toBeGreaterThan(10);
       expect(cfg.goals.length).toBeGreaterThan(0);
+      if (i <= 8) {
+        expect(cfg.colors).toBe(4);
+      } else {
+        expect(cfg.colors).toBe(5);
+      }
     }
   });
 });

@@ -2,6 +2,7 @@ import {
   Board,
   Cell,
   ClearCause,
+  DetonateTrigger,
   Gem,
   GemColor,
   GoalProgress,
@@ -39,6 +40,7 @@ interface Activation {
   cell: Cell;
   gem: Gem;
   wave: number;
+  trigger?: DetonateTrigger;
 }
 
 export class CoreEngine implements GridCore {
@@ -184,21 +186,22 @@ export class CoreEngine implements GridCore {
         this.applyRefill(steps, cascade);
         cascade++;
         if (cascade > MAX_CASCADES) break;
-        matches = evaluateMatches(this.board); // Cascades do not pass swapCells
+        matches = evaluateMatches(this.board);
       }
     }
 
     // After resolution, check if any valid moves remain. If none, shuffle.
     this.ensureValidMovesRemain(steps);
 
-    const pointsGained = this.progress.score - initialScore;
-    let outcome = evaluateOutcome(this.config.goals, this.progress, this.movesLeft);
+    const outcome = evaluateOutcome(this.config.goals, this.progress, this.movesLeft);
 
-    // If won and moves left, optionally trigger celebratory end bonus!
+    // If won, reward leftover moves as bonus score: 1000 pts per remaining move (preserves movesLeft)
     if (outcome === 'won' && this.movesLeft > 0) {
-      this.triggerEndBonus(steps);
-      outcome = 'won';
+      const movesBonus = this.movesLeft * 1000;
+      this.progress.score += movesBonus;
     }
+
+    const pointsGained = this.progress.score - initialScore;
 
     return {
       accepted: true,
@@ -241,6 +244,7 @@ export class CoreEngine implements GridCore {
         gem: gemB,
         affected,
         wave: 1,
+        trigger: { type: 'fusion' },
       });
 
       const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
@@ -254,10 +258,20 @@ export class CoreEngine implements GridCore {
           if (gem.kind === 'bomb' && !activatedIds.has(gem.id)) {
             activatedIds.add(gem.id);
             this.progress.detonated++;
-            queue.push({ cell, gem, wave: 2 });
+            queue.push({
+              cell,
+              gem,
+              wave: 2,
+              trigger: { type: 'blast', sourceCell: center },
+            });
           } else if (gem.kind === 'rainbow' && !activatedIds.has(gem.id)) {
             activatedIds.add(gem.id);
-            queue.push({ cell, gem, wave: 2 });
+            queue.push({
+              cell,
+              gem,
+              wave: 2,
+              trigger: { type: 'blast', sourceCell: center },
+            });
           }
         }
       }
@@ -311,7 +325,12 @@ export class CoreEngine implements GridCore {
         if (t.gem.kind === 'bomb' && !activatedIds.has(t.gem.id)) {
           activatedIds.add(t.gem.id);
           this.progress.detonated++;
-          queue.push({ cell: t.cell, gem: t.gem, wave: wave + 1 });
+          queue.push({
+            cell: t.cell,
+            gem: t.gem,
+            wave: wave + 1,
+            trigger: { type: 'blast', sourceCell: rainbowCell },
+          });
         }
       }
 
@@ -386,7 +405,12 @@ export class CoreEngine implements GridCore {
         if (!activatedIds.has(bItem.gem.id)) {
           activatedIds.add(bItem.gem.id);
           this.progress.detonated++;
-          queue.push({ cell: bItem.cell, gem: bItem.gem, wave: seqWave });
+          queue.push({
+            cell: bItem.cell,
+            gem: bItem.gem,
+            wave: seqWave,
+            trigger: { type: 'fusion' },
+          });
           seqWave++;
         }
       }
@@ -436,7 +460,11 @@ export class CoreEngine implements GridCore {
   /**
    * Resolves a single wave of matches and resulting special activations.
    */
-  private resolveWave(matches: MatchGroup[], cascade: number, steps: Step[]): void {
+  private resolveWave(
+    matches: MatchGroup[],
+    cascade: number,
+    steps: Step[]
+  ): void {
     const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
     const queue: Activation[] = [];
     const activatedIds = new Set<number>();
@@ -476,7 +504,15 @@ export class CoreEngine implements GridCore {
             if (gem.kind === 'bomb') {
               this.progress.detonated++;
             }
-            queue.push({ cell, gem, wave: 1 });
+            queue.push({
+              cell,
+              gem,
+              wave: 1,
+              trigger: {
+                type: 'match',
+                matchCells: [...group.cells],
+              },
+            });
           }
         }
       }
@@ -488,7 +524,7 @@ export class CoreEngine implements GridCore {
     // 3. Commit clears and remove gems from board
     this.commitClears(toClearMap, 'match', cascade, steps);
 
-    // 4. Place spawned specials onto the board (IMMUNE to this wave)
+    // 4. Place spawned specials onto the board (IMMUNE to this wave and turn's passive cascade matches)
     for (const sp of spawnsToPlace) {
       this.board[sp.cell.r][sp.cell.c] = sp.gem;
       steps.push({
@@ -525,6 +561,7 @@ export class CoreEngine implements GridCore {
           gem: act.gem,
           affected: area,
           wave: act.wave,
+          trigger: act.trigger,
         });
 
         toClearMap.set(`${act.cell.r},${act.cell.c}`, {
@@ -545,10 +582,26 @@ export class CoreEngine implements GridCore {
               if (gem.kind === 'bomb') {
                 activatedIds.add(gem.id);
                 this.progress.detonated++;
-                queue.push({ cell, gem, wave: act.wave + 1 });
+                queue.push({
+                  cell,
+                  gem,
+                  wave: act.wave + 1,
+                  trigger: {
+                    type: 'blast',
+                    sourceCell: act.cell,
+                  },
+                });
               } else if (gem.kind === 'rainbow') {
                 activatedIds.add(gem.id);
-                queue.push({ cell, gem, wave: act.wave + 1 });
+                queue.push({
+                  cell,
+                  gem,
+                  wave: act.wave + 1,
+                  trigger: {
+                    type: 'blast',
+                    sourceCell: act.cell,
+                  },
+                });
               }
             }
           }
@@ -573,7 +626,15 @@ export class CoreEngine implements GridCore {
               if (gem.kind === 'bomb' && !activatedIds.has(gem.id)) {
                 activatedIds.add(gem.id);
                 this.progress.detonated++;
-                queue.push({ cell, gem, wave: act.wave + 2 });
+                queue.push({
+                  cell,
+                  gem,
+                  wave: act.wave + 2,
+                  trigger: {
+                    type: 'blast',
+                    sourceCell: act.cell,
+                  },
+                });
               }
             }
           }
@@ -710,7 +771,7 @@ export class CoreEngine implements GridCore {
    * Refills empty cells at the top of each column using the column's PRNG stream.
    * On cascade >= 2, dampens refills by avoiding immediate automatic 3-in-a-rows.
    */
-  private applyRefill(steps: Step[], cascade: number = 1): void {
+  private applyRefill(steps: Step[], _cascade: number = 1): void {
     const rows = this.board.length;
     const cols = this.board[0].length;
     const spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[] = [];
@@ -730,8 +791,8 @@ export class CoreEngine implements GridCore {
           const allowedColors: GemColor[] = [];
           for (let clr = 0; clr < this.config.colors; clr++) {
             const gClr = clr as GemColor;
-            // On cascade >= 2, exclude colors that create runaway automatic matches
-            if (cascade < 2 || !this.wouldCreateMatch(r, c, gClr)) {
+            // Exclude colors that immediately create runaway automatic 3-in-a-rows
+            if (!this.wouldCreateMatch(r, c, gClr)) {
               allowedColors.push(gClr);
             }
           }
@@ -828,71 +889,6 @@ export class CoreEngine implements GridCore {
           moves: shuffleMoves,
         });
         break;
-      }
-    }
-  }
-
-  /**
-   * End bonus: leftover moves turn into bombs that detonate on win!
-   */
-  private triggerEndBonus(steps: Step[]): void {
-    const rows = this.board.length;
-    const cols = this.board[0].length;
-
-    while (this.movesLeft > 0) {
-      this.movesLeft--;
-
-      // Find all normal gems
-      const candidates: Cell[] = [];
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const gem = this.board[r][c];
-          if (gem && gem.kind === 'normal') {
-            candidates.push({ r, c });
-          }
-        }
-      }
-
-      if (candidates.length === 0) break;
-
-      const pickIdx = this.rngManager.shuffleRng.int(candidates.length);
-      const chosenCell = candidates[pickIdx];
-      const normalGem = this.board[chosenCell.r][chosenCell.c];
-      if (!normalGem || normalGem.kind !== 'normal') continue;
-      const bonusBomb: Gem = {
-        id: normalGem.id,
-        kind: 'bomb',
-        color: normalGem.color,
-        tier: (this.rngManager.shuffleRng.int(2) + 1) as 1 | 2,
-      };
-      this.board[chosenCell.r][chosenCell.c] = bonusBomb;
-
-      steps.push({
-        type: 'transform',
-        cells: [chosenCell],
-        to: [bonusBomb],
-      });
-
-      // Detonate it
-      const queue: Activation[] = [{ cell: chosenCell, gem: bonusBomb, wave: 1 }];
-      const activatedIds = new Set<number>([bonusBomb.id]);
-      this.progress.detonated++;
-      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
-
-      this.processActivationQueue(queue, activatedIds, toClearMap, steps);
-      this.commitClears(toClearMap, 'blast', 1, steps);
-      this.applyGravity(steps);
-      this.applyRefill(steps);
-
-      // Cascades from bonus
-      let cascade = 2;
-      let matches = evaluateMatches(this.board);
-      while (matches.length > 0) {
-        this.resolveWave(matches, cascade, steps);
-        this.applyGravity(steps);
-        this.applyRefill(steps);
-        cascade++;
-        matches = evaluateMatches(this.board);
       }
     }
   }

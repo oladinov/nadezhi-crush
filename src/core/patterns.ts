@@ -109,7 +109,10 @@ export function findRuns(board: Board): Run[] {
 /**
  * Union-Find implementation to group intersecting runs of the same color into MatchGroups.
  */
-export function evaluateMatches(board: Board, swapCells?: [Cell, Cell]): MatchGroup[] {
+export function evaluateMatches(
+  board: Board,
+  swapCells?: [Cell, Cell]
+): MatchGroup[] {
   const runs = findRuns(board);
   if (runs.length === 0) return [];
 

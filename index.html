@@ -14,6 +14,7 @@
         <button id="btn-levels" class="card-pill level-title-container" style="cursor: pointer; border: none;">
           <span id="ui-level-badge" class="level-badge">Nivel 1</span>
           <span id="ui-level-name" class="level-name">Primeros Pasos ▾</span>
+          <span id="ui-biome-name" class="biome-name">🌿 Praderas del Valle</span>
         </button>
       </div>
 
@@ -41,6 +42,9 @@
           <span id="volume-val" class="volume-label">70%</span>
         </div>
 
+        <!-- MUSIC TRACK SWITCHER -->
+        <button id="btn-music-next" class="btn-icon" title="Cambiar Canción (Siguiente Pista)">🎵</button>
+
         <!-- SKIN TOGGLE (EMOTES DEFAULT) -->
         <button id="btn-skin" class="btn-icon" title="Cambiar Apariencia (Emotes / Gemas)">🎭</button>
 
@@ -48,6 +52,12 @@
         <button id="btn-restart" class="btn-icon" title="Reiniciar Nivel">🔄</button>
       </div>
     </header>
+
+    <!-- FLOATING TOAST BANNER -->
+    <div id="toast-banner" class="toast-banner">
+      <span id="toast-icon">🎵</span>
+      <span id="toast-text">Música: Fiesta en la Comarca</span>
+    </div>
 
     <!-- GOALS CONTAINER -->
     <div id="ui-goals" class="goals-container">
@@ -72,6 +82,9 @@
         <div class="modal-score-box">
           <div class="modal-score-label">Puntuación Final</div>
           <div id="modal-win-score" class="modal-score-val">0</div>
+          <div id="modal-win-bonus-row" style="margin-top: 8px; font-size: 0.95rem; color: #fbbf24;">
+            Movimientos sobrantes: <strong id="modal-win-moves">0</strong> (<span id="modal-win-bonus-pts">+0 pts</span>)
+          </div>
         </div>
         <div class="modal-actions">
           <button id="btn-modal-replay" class="btn-pill btn-secondary" style="padding: 12px 24px;">Reintentar</button>

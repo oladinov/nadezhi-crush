@@ -6,13 +6,16 @@ window.addEventListener('DOMContentLoaded', () => {
   if (!container) return;
 
   // DOM Elements
+  const app = document.getElementById('app')!;
   const uiLevelBadge = document.getElementById('ui-level-badge')!;
   const uiLevelName = document.getElementById('ui-level-name')!;
+  const uiBiomeName = document.getElementById('ui-biome-name')!;
   const uiMoves = document.getElementById('ui-moves')!;
   const uiScore = document.getElementById('ui-score')!;
   const uiGoals = document.getElementById('ui-goals')!;
 
   const btnSound = document.getElementById('btn-sound')!;
+  const btnMusicNext = document.getElementById('btn-music-next')!;
   const volumeSlider = document.getElementById('volume-slider') as HTMLInputElement;
   const volumeVal = document.getElementById('volume-val')!;
 
@@ -21,6 +24,21 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnPrev = document.getElementById('btn-prev-level')!;
   const btnNext = document.getElementById('btn-next-level')!;
   const btnLevels = document.getElementById('btn-levels')!;
+
+  // Toast notification
+  const toastBanner = document.getElementById('toast-banner')!;
+  const toastIcon = document.getElementById('toast-icon')!;
+  const toastText = document.getElementById('toast-text')!;
+  let toastTimeout: any = null;
+  const showToast = (icon: string, text: string) => {
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastIcon.textContent = icon;
+    toastText.textContent = text;
+    toastBanner.classList.add('active');
+    toastTimeout = setTimeout(() => {
+      toastBanner.classList.remove('active');
+    }, 2800);
+  };
 
   // Modals
   const modalWin = document.getElementById('modal-win')!;
@@ -36,12 +54,32 @@ window.addEventListener('DOMContentLoaded', () => {
   const levelSelectGrid = document.getElementById('level-select-grid')!;
   const btnCloseLevelSelect = document.getElementById('btn-close-level-select')!;
 
+  let lastBiomeImage = '';
+
   // UI Update Handler
   const handleUIUpdate = (ui: UIStateUpdate) => {
     uiLevelBadge.textContent = `Nivel ${ui.level}`;
     uiLevelName.textContent = `${ui.title} ▾`;
+    if (uiBiomeName) {
+      uiBiomeName.textContent = `🌿 ${ui.biome.name}`;
+    }
     uiMoves.textContent = ui.movesLeft.toString();
     uiScore.textContent = ui.score.toLocaleString();
+
+    // Biome background transition
+    if (!app.style.backgroundImage.includes(ui.biome.image)) {
+      app.style.backgroundImage = `url("${ui.biome.image}")`;
+    }
+
+    if (lastBiomeImage && lastBiomeImage !== ui.biome.image) {
+      showToast('🗺️', `Nueva Región: ${ui.biome.name}`);
+    }
+    lastBiomeImage = ui.biome.image;
+
+    // Music button tooltip
+    if (btnMusicNext && ui.currentTrack) {
+      btnMusicNext.title = `Música: ${ui.currentTrack.name} • ${ui.currentTrack.artist} (Click para cambiar)`;
+    }
 
     // Moves urgency color
     if (ui.movesLeft <= 3) {
@@ -50,12 +88,18 @@ window.addEventListener('DOMContentLoaded', () => {
       uiMoves.style.color = 'var(--accent-gold)';
     }
 
-    // Render Goals
+    // Render Goals with thumbnails and emote awareness
     uiGoals.innerHTML = '';
     for (const g of ui.goals) {
       const chip = document.createElement('div');
       chip.className = `goal-chip ${g.completed ? 'completed' : ''}`;
+      const iconHtml =
+        g.iconType === 'image'
+          ? `<img src="${g.icon}" class="goal-chip-thumb" alt="${g.description}" />`
+          : `<span class="goal-chip-icon">${g.icon}</span>`;
+
       chip.innerHTML = `
+        ${iconHtml}
         <span>${g.description}: <strong>${g.current}/${g.target}</strong></span>
         <span class="check-icon">✓</span>
       `;
@@ -86,6 +130,13 @@ window.addEventListener('DOMContentLoaded', () => {
     // Modals
     if (ui.state === 'LevelComplete') {
       modalWinScore.textContent = ui.score.toLocaleString();
+      const modalWinMoves = document.getElementById('modal-win-moves');
+      const modalWinBonusPts = document.getElementById('modal-win-bonus-pts');
+      if (modalWinMoves && modalWinBonusPts) {
+        modalWinMoves.textContent = ui.movesLeft.toString();
+        const bonusTotal = ui.movesLeft * 1000;
+        modalWinBonusPts.textContent = `+${bonusTotal.toLocaleString()} pts`;
+      }
       modalWin.classList.add('active');
     } else {
       modalWin.classList.remove('active');
@@ -113,6 +164,12 @@ window.addEventListener('DOMContentLoaded', () => {
   btnSound.addEventListener('click', (e) => {
     e.stopPropagation();
     game.toggleMute();
+  });
+
+  btnMusicNext.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const track = game.nextMusicTrack();
+    showToast('🎵', `Música: ${track.name} (${track.artist})`);
   });
 
   volumeSlider.addEventListener('input', (e) => {
