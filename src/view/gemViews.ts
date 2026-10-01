@@ -17,13 +17,26 @@ export interface GemView {
   baseScale: THREE.Vector3;
 }
 
+// Global module-level caches to prevent texture reloading, race conditions, or fallback overwriting
+let globalJewelMaterials: THREE.MeshBasicMaterial[] | null = null;
+const globalEmoteMaterials: (THREE.MeshBasicMaterial | null)[] = [null, null, null, null, null];
+let globalHaloTexture: THREE.CanvasTexture | null = null;
+let emoteLoadingStarted = false;
+
+const EMOTE_PATHS = [
+  '/emotes/1103355444124209192.webp', // Clown (Red - 0)
+  '/emotes/1103355458179309619.webp', // Screaming girl (Blue - 1)
+  '/emotes/1142187365251686491.webp', // Crying cat (Green - 2)
+  '/emotes/1536895951950577814.webp', // GG cat (Amber - 3)
+  '/emotes/1536895958728835182.webp', // LABURE girl (Purple - 4)
+];
+
 export class GemViewManager {
   private gemPlaneGeo: THREE.PlaneGeometry;
   private rainbowGeo: THREE.IcosahedronGeometry;
   private ringGeo: THREE.RingGeometry;
   private haloTexture: THREE.CanvasTexture;
   private jewelMaterials: THREE.MeshBasicMaterial[] = [];
-  private emoteMaterials: (THREE.MeshBasicMaterial | null)[] = [];
   public skinMode: GemSkinMode = 'emotes';
 
   public views: Map<number, GemView> = new Map();
@@ -36,9 +49,13 @@ export class GemViewManager {
     this.rainbowGeo = new THREE.IcosahedronGeometry(0.38, 1);
     this.ringGeo = new THREE.RingGeometry(0.44, 0.52, 24);
 
-    this.haloTexture = this.createHaloTexture();
+    if (!globalHaloTexture) {
+      globalHaloTexture = this.createHaloTexture();
+    }
+    this.haloTexture = globalHaloTexture;
+
     this.initJewelMaterials();
-    this.loadEmoteTextures();
+    this.initEmoteTextures();
   }
 
   private createHaloTexture(): THREE.CanvasTexture {
@@ -62,50 +79,55 @@ export class GemViewManager {
   }
 
   private initJewelMaterials() {
-    // Generate distinct, high-res procedural jewel textures for each color
-    for (let c = 0; c < 5; c++) {
-      const texture = this.createJewelTexture(c as GemColor);
-      const mat = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-      });
-      this.jewelMaterials.push(mat);
+    if (!globalJewelMaterials) {
+      globalJewelMaterials = [];
+      for (let c = 0; c < 5; c++) {
+        const texture = this.createJewelTexture(c as GemColor);
+        const mat = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+        });
+        globalJewelMaterials.push(mat);
+      }
     }
+    this.jewelMaterials = globalJewelMaterials;
   }
 
-  private loadEmoteTextures() {
-    const loader = new THREE.TextureLoader();
-    const emotePaths = [
-      'emotes/1103355444124209192.webp', // Clown
-      'emotes/1103355458179309619.webp', // Screaming girl
-      'emotes/1142187365251686491.webp', // Crying cat
-      'emotes/1536895951950577814.webp', // GG cat
-      'emotes/1536895958728835182.webp', // LABURE girl
-    ];
+  private initEmoteTextures() {
+    if (emoteLoadingStarted) {
+      // Already loading or loaded: refresh current views if needed
+      this.refreshCurrentViewsMaterial();
+      return;
+    }
+    emoteLoadingStarted = true;
 
+    const loader = new THREE.TextureLoader();
     for (let i = 0; i < 5; i++) {
       loader.load(
-        emotePaths[i],
+        EMOTE_PATHS[i],
         (tex) => {
           tex.colorSpace = THREE.SRGBColorSpace;
-          this.emoteMaterials[i] = new THREE.MeshBasicMaterial({
+          globalEmoteMaterials[i] = new THREE.MeshBasicMaterial({
             map: tex,
             transparent: true,
           });
-          if (this.skinMode === 'emotes') {
-            for (const view of this.views.values()) {
-              if (view.gem.kind !== 'rainbow' && view.gem.color === i) {
-                view.mesh.material = this.emoteMaterials[i]!;
-              }
-            }
-          }
+          this.refreshCurrentViewsMaterial();
         },
         undefined,
-        () => {
-          // Fallback to jewel texture if emote fails to load
-          this.emoteMaterials[i] = this.jewelMaterials[i];
+        (err) => {
+          console.warn(`Could not load emote texture ${EMOTE_PATHS[i]}:`, err);
         }
       );
+    }
+  }
+
+  private refreshCurrentViewsMaterial() {
+    if (this.skinMode === 'emotes') {
+      for (const view of this.views.values()) {
+        if (view.gem.kind !== 'rainbow') {
+          view.mesh.material = this.getMaterial(view.gem.color);
+        }
+      }
     }
   }
 
@@ -206,8 +228,8 @@ export class GemViewManager {
   }
 
   public getMaterial(color: GemColor): THREE.MeshBasicMaterial {
-    if (this.skinMode === 'emotes' && this.emoteMaterials[color]) {
-      return this.emoteMaterials[color]!;
+    if (this.skinMode === 'emotes' && globalEmoteMaterials[color]) {
+      return globalEmoteMaterials[color]!;
     }
     return this.jewelMaterials[color];
   }

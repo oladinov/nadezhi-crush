@@ -54,6 +54,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const levelSelectGrid = document.getElementById('level-select-grid')!;
   const btnCloseLevelSelect = document.getElementById('btn-close-level-select')!;
 
+  const btnHelp = document.getElementById('btn-help')!;
+  const modalHelp = document.getElementById('modal-help')!;
+  const btnCloseHelp = document.getElementById('btn-close-help')!;
+
   let lastBiomeImage = '';
 
   // UI Update Handler
@@ -235,5 +239,13 @@ window.addEventListener('DOMContentLoaded', () => {
   btnLevels.addEventListener('click', openLevelSelect);
   btnCloseLevelSelect.addEventListener('click', () => {
     modalLevelSelect.classList.remove('active');
+  });
+
+  btnHelp.addEventListener('click', (e) => {
+    e.stopPropagation();
+    modalHelp.classList.add('active');
+  });
+  btnCloseHelp.addEventListener('click', () => {
+    modalHelp.classList.remove('active');
   });
 });

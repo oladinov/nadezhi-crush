@@ -218,20 +218,20 @@ export const CURATED_LEVELS: LevelConfig[] = [
     description: 'Desencadena cadenas de bombas.',
   },
 
-  // Nivel 16: Apocalipsis
+  // Nivel 16: Torrente de Poder
   {
     level: 16,
     seed: hashString('level_16'),
     rows: 8,
     cols: 8,
     colors: 5,
-    moves: 15,
+    moves: 22,
     goals: [
-      { type: 'detonate', count: 10 },
-      { type: 'score', target: 18000 },
+      { type: 'detonate', count: 6 },
+      { type: 'score', target: 14000 },
     ],
     title: 'Torrente de Poder',
-    description: 'Supera el umbral de detonaciones.',
+    description: 'Combina elementos y desata detonaciones en cadena.',
   },
 
   // Nivel 17: Arcoíris + Arcoíris

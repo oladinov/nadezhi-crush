@@ -50,6 +50,9 @@
 
         <!-- RESTART LEVEL -->
         <button id="btn-restart" class="btn-icon" title="Reiniciar Nivel">🔄</button>
+
+        <!-- HELP & ABOUT -->
+        <button id="btn-help" class="btn-icon" title="Guía y Créditos">❓</button>
       </div>
     </header>
 
@@ -117,6 +120,90 @@
         <div id="level-select-grid" class="level-grid"></div>
         <div class="modal-actions">
           <button id="btn-close-level-select" class="btn-pill btn-secondary" style="padding: 10px 24px;">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HELP & ABOUT MODAL -->
+    <div id="modal-help" class="modal-overlay">
+      <div class="modal-card modal-help-card">
+        <h2 class="modal-title" style="color: #ffffff; font-size: 1.5rem; margin-bottom: 6px;">📖 Guía y Créditos</h2>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 14px;">Aprende cómo forjar bombas, crear fusiones y conoce los recursos del juego.</p>
+
+        <div class="help-scroll-content">
+          <!-- SECTION 1: CREAR ESPECIALES -->
+          <div class="help-section">
+            <h3 class="help-heading">⚡ Gemas Especiales</h3>
+            <div class="help-grid">
+              <div class="help-item">
+                <div class="help-item-icon">💣</div>
+                <div class="help-item-info">
+                  <strong>Bomba 3×3 (Tier 1)</strong>
+                  <span>Alinea <strong>4 gemas en línea</strong>. Explota en un área de 3×3 al detonar.</span>
+                </div>
+              </div>
+
+              <div class="help-item">
+                <div class="help-item-icon">💥</div>
+                <div class="help-item-info">
+                  <strong>Bomba 5×5 (Tier 2)</strong>
+                  <span>Combina en forma de <strong>L o T</strong> (5 gemas). Explota en un área masiva de 5×5.</span>
+                </div>
+              </div>
+
+              <div class="help-item">
+                <div class="help-item-icon">🌈</div>
+                <div class="help-item-info">
+                  <strong>Gema Arcoíris</strong>
+                  <span>Alinea <strong>5 gemas en línea recta</strong>. Al intercambiarla, destruye todas las gemas de ese color.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: FUSIONES -->
+          <div class="help-section">
+            <h3 class="help-heading">✨ Fusiones Épicas</h3>
+            <div class="help-grid">
+              <div class="help-item">
+                <div class="help-item-icon">💣+💣</div>
+                <div class="help-item-info">
+                  <strong>Bomba + Bomba</strong>
+                  <span>Limpia toda la fila, toda la columna y un radio de 5×5.</span>
+                </div>
+              </div>
+
+              <div class="help-item">
+                <div class="help-item-icon">🌈+💣</div>
+                <div class="help-item-info">
+                  <strong>Arcoíris + Bomba</strong>
+                  <span>Convierte todas las gemas de ese color en bombas y las detona en cadena.</span>
+                </div>
+              </div>
+
+              <div class="help-item">
+                <div class="help-item-icon">🌈+🌈</div>
+                <div class="help-item-info">
+                  <strong>Arcoíris + Arcoíris</strong>
+                  <span>Onda cósmica: ¡Limpia el tablero completo en ondas de choque!</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: CRÉDITOS Y LICENCIAS -->
+          <div class="help-section">
+            <h3 class="help-heading">📜 Créditos y Licencias</h3>
+            <div class="help-credits-text">
+              <p>🎵 <strong>Música de fantasía:</strong> Compuesta por <em>Kevin MacLeod</em> (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>) bajo licencia Creative Commons: By Attribution 4.0 (CC BY 4.0).</p>
+              <p>Pistas incluidas: <em>Folk Round, Minstrel Guild, Celtic Impulse, Village Consort</em>.</p>
+              <p style="margin-top: 6px;">🎮 <strong>Tecnología:</strong> Desarrollado con Three.js, Vite, TypeScript y GSAP.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 14px;">
+          <button id="btn-close-help" class="btn-primary" style="padding: 10px 32px;">¡Entendido!</button>
         </div>
       </div>
     </div>

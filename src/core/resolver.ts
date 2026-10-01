@@ -443,7 +443,7 @@ export class CoreEngine implements GridCore {
 
     // Now gravity and refill after fusion
     this.applyGravity(steps);
-    this.applyRefill(steps);
+    this.applyRefill(steps, cascade);
 
     // Check subsequent cascades
     cascade++;
@@ -770,13 +770,26 @@ export class CoreEngine implements GridCore {
   }
 
   /**
-   * Refills empty cells at the top of each column using the column's PRNG stream.
-   * On cascade >= 2, dampens refills by avoiding immediate automatic 3-in-a-rows.
+   * Returns the cascade wave count at which refill dampening begins.
+   * - Levels 1–5 (Beginner): Lax. Waves 1, 2, 3 refill naturally; dampens only at wave 4+.
+   * - Levels 6–12 (Intermediate): Balanced. Waves 1, 2 refill naturally; dampens at wave 3+.
+   * - Levels 13+ (Advanced): Strict. Wave 1 refilled naturally; dampens at wave 2+ to require tactical bomb creation.
    */
-  private applyRefill(steps: Step[], _cascade: number = 1): void {
+  private getCascadeDampeningThreshold(): number {
+    if (this.config.level <= 5) return 4;
+    if (this.config.level <= 12) return 3;
+    return 2;
+  }
+
+  /**
+   * Refills empty cells at the top of each column using the column's PRNG stream.
+   * Only applies dampening once cascade count reaches getCascadeDampeningThreshold().
+   */
+  private applyRefill(steps: Step[], cascade: number = 1): void {
     const rows = this.board.length;
     const cols = this.board[0].length;
     const spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[] = [];
+    const shouldDampen = cascade >= this.getCascadeDampeningThreshold();
 
     for (let c = 0; c < cols; c++) {
       let emptyCount = 0;
@@ -790,19 +803,26 @@ export class CoreEngine implements GridCore {
         const colRng = this.rngManager.getSpawnRng(c);
         let dropIndex = emptyCount;
         for (let r = emptyCount - 1; r >= 0; r--) {
-          const allowedColors: GemColor[] = [];
-          for (let clr = 0; clr < this.config.colors; clr++) {
-            const gClr = clr as GemColor;
-            // Exclude colors that immediately create runaway automatic 3-in-a-rows
-            if (!this.wouldCreateMatch(r, c, gClr)) {
-              allowedColors.push(gClr);
-            }
-          }
+          let color: GemColor;
 
-          const color: GemColor =
-            allowedColors.length > 0
-              ? allowedColors[colRng.int(allowedColors.length)]
-              : (colRng.int(this.config.colors) as GemColor);
+          if (shouldDampen) {
+            const allowedColors: GemColor[] = [];
+            for (let clr = 0; clr < this.config.colors; clr++) {
+              const gClr = clr as GemColor;
+              // Exclude colors that immediately create runaway automatic 3-in-a-rows
+              if (!this.wouldCreateMatch(r, c, gClr)) {
+                allowedColors.push(gClr);
+              }
+            }
+
+            color =
+              allowedColors.length > 0
+                ? allowedColors[colRng.int(allowedColors.length)]
+                : (colRng.int(this.config.colors) as GemColor);
+          } else {
+            // Natural random refill: allows exciting cascades and combos!
+            color = colRng.int(this.config.colors) as GemColor;
+          }
 
           const newGem: Gem = {
             id: this.nextId(),
