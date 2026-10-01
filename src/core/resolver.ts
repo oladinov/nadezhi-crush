@@ -245,9 +245,10 @@ export class CoreEngine implements GridCore {
         affected,
         wave: 1,
         trigger: { type: 'fusion' },
+        points: SPECIAL_POINTS.bombBombFusion,
       });
 
-      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
+      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
       toClearMap.set(`${a.r},${a.c}`, { cell: a, gem: gemA, wave: 1 });
       toClearMap.set(`${b.r},${b.c}`, { cell: b, gem: gemB, wave: 1 });
 
@@ -283,7 +284,6 @@ export class CoreEngine implements GridCore {
       // Note: gemA is now at cell b, gemB is now at cell a
       const rainbowCell = gemA.kind === 'rainbow' ? b : a;
       const color = fusion.color;
-      this.progress.score += SPECIAL_POINTS.rainbowSimple;
 
       const queue: Activation[] = [];
       const activatedIds = new Set<number>();
@@ -313,11 +313,12 @@ export class CoreEngine implements GridCore {
           : x.cell.c - y.cell.c
       );
 
-      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
+      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
       toClearMap.set(`${rainbowCell.r},${rainbowCell.c}`, {
         cell: rainbowCell,
         gem: rainbowGem,
         wave: 1,
+        bonusPoints: SPECIAL_POINTS.rainbowSimple,
       });
 
       for (const t of targetCells) {
@@ -343,7 +344,6 @@ export class CoreEngine implements GridCore {
       const rainbowCell = gemA.kind === 'rainbow' ? b : a;
       const bombSwapCell = gemA.kind === 'rainbow' ? a : b;
       const color = fusion.color;
-      this.progress.score += SPECIAL_POINTS.rainbowBombFusion;
 
       const rainbowGem = this.board[rainbowCell.r][rainbowCell.c]!;
       const activatedIds = new Set<number>([rainbowGem.id]);
@@ -394,11 +394,12 @@ export class CoreEngine implements GridCore {
           : x.cell.c - y.cell.c
       );
 
-      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
+      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
       toClearMap.set(`${rainbowCell.r},${rainbowCell.c}`, {
         cell: rainbowCell,
         gem: rainbowGem,
         wave: 1,
+        bonusPoints: SPECIAL_POINTS.rainbowBombFusion,
       });
 
       const queue: Activation[] = [];
@@ -422,15 +423,20 @@ export class CoreEngine implements GridCore {
     } else if (fusion.type === 'rainbow_rainbow') {
       // Rainbow + Rainbow: Full board wipe in concentric waves from b
       const center = b;
-      this.progress.score += SPECIAL_POINTS.rainbowRainbowFusion;
-      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
+      const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const gem = this.board[r][c];
           if (gem) {
+            const isCenter = r === center.r && c === center.c;
             const wave = manhattanDistance(center, { r, c }) + 1;
-            toClearMap.set(`${r},${c}`, { cell: { r, c }, gem, wave });
+            toClearMap.set(`${r},${c}`, {
+              cell: { r, c },
+              gem,
+              wave,
+              bonusPoints: isCenter ? SPECIAL_POINTS.rainbowRainbowFusion : undefined,
+            });
             if (gem.kind === 'bomb') {
               this.progress.detonated++;
             }
@@ -467,7 +473,7 @@ export class CoreEngine implements GridCore {
     cascade: number,
     steps: Step[]
   ): void {
-    const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number }>();
+    const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
     const queue: Activation[] = [];
     const activatedIds = new Set<number>();
     const spawnsToPlace: { cell: Cell; gem: Gem; from: Cell[] }[] = [];
@@ -544,7 +550,7 @@ export class CoreEngine implements GridCore {
   private processActivationQueue(
     queue: Activation[],
     activatedIds: Set<number>,
-    toClearMap: Map<string, { cell: Cell; gem: Gem; wave: number }>,
+    toClearMap: Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>,
     steps: Step[]
   ): void {
     const rows = this.board.length;
@@ -564,6 +570,7 @@ export class CoreEngine implements GridCore {
           affected: area,
           wave: act.wave,
           trigger: act.trigger,
+          points: pts,
         });
 
         toClearMap.set(`${act.cell.r},${act.cell.c}`, {
@@ -610,13 +617,13 @@ export class CoreEngine implements GridCore {
         }
       } else if (act.gem.kind === 'rainbow') {
         // Rainbow triggered by explosion: activates against most abundant color
-        this.progress.score += SPECIAL_POINTS.rainbowSimple;
         const targetColor = getMostAbundantColor(this.board);
 
         toClearMap.set(`${act.cell.r},${act.cell.c}`, {
           cell: act.cell,
           gem: act.gem,
           wave: act.wave,
+          bonusPoints: SPECIAL_POINTS.rainbowSimple,
         });
 
         for (let r = 0; r < rows; r++) {
@@ -649,7 +656,7 @@ export class CoreEngine implements GridCore {
    * Commits cleared cells, records points, updates progress and sets board cells to null.
    */
   private commitClears(
-    toClearMap: Map<string, { cell: Cell; gem: Gem; wave: number }>,
+    toClearMap: Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>,
     cause: ClearCause,
     cascade: number,
     steps: Step[]
@@ -665,8 +672,11 @@ export class CoreEngine implements GridCore {
     );
 
     let wavePoints = 0;
+    const finalClearCells: { cell: Cell; gem: Gem; wave: number; points: number }[] = [];
     for (const item of clearList) {
-      const pts = getGemClearPoints(cascade);
+      const basePts = getGemClearPoints(cascade);
+      const bonus = item.bonusPoints || 0;
+      const pts = basePts + bonus;
       wavePoints += pts;
       this.progress.score += pts;
 
@@ -675,11 +685,17 @@ export class CoreEngine implements GridCore {
           (this.progress.collected[item.gem.color] || 0) + 1;
       }
       this.board[item.cell.r][item.cell.c] = null;
+      finalClearCells.push({
+        cell: item.cell,
+        gem: item.gem,
+        wave: item.wave,
+        points: pts,
+      });
     }
 
     steps.push({
       type: 'clear',
-      cells: clearList,
+      cells: finalClearCells,
       cause,
       cascade,
       points: wavePoints,

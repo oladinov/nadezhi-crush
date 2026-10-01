@@ -56,7 +56,7 @@ export type Step =
   | { type: 'transform'; cells: Cell[]; to: Gem[] } // arcoíris+bomba
   | {
       type: 'clear';
-      cells: { cell: Cell; gem: Gem; wave: number }[];
+      cells: { cell: Cell; gem: Gem; wave: number; points?: number }[];
       cause: ClearCause;
       cascade: number;
       points: number;
@@ -68,6 +68,7 @@ export type Step =
       affected: Cell[];
       wave: number;
       trigger?: DetonateTrigger;
+      points?: number;
     }
   | { type: 'spawnSpecial'; cell: Cell; gem: Gem; from: Cell[] }
   | { type: 'gravity'; moves: { id: number; from: Cell; to: Cell }[] }

@@ -406,4 +406,52 @@ describe('Bomb Matching and Detonate Triggers', () => {
       expect(chained.trigger?.type).toBe('blast');
     }
   });
+
+  it('awards points on detonate steps and individual cleared cells for rainbow and bombs', () => {
+    const board = createEmptyBoard(4, 4);
+    let id = 1;
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        board[r][c] = { id: id++, kind: 'normal', color: 0 };
+      }
+    }
+    // Place rainbow at (0, 0) and normal of color 1 at (0, 1)
+    board[0][0] = { id: 100, kind: 'rainbow' };
+    board[0][1] = { id: 101, kind: 'normal', color: 1 };
+    board[2][2] = { id: 102, kind: 'normal', color: 1 };
+
+    const config: LevelConfig = {
+      level: 200,
+      seed: 200,
+      rows: 4,
+      cols: 4,
+      colors: 3,
+      moves: 10,
+      goals: [{ type: 'score', target: 1000 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    const res = engine.resolveMove({ r: 0, c: 0 }, { r: 0, c: 1 });
+    expect(res.accepted).toBe(true);
+
+    const clearStep = res.steps.find((s) => s.type === 'clear');
+    expect(clearStep).toBeDefined();
+    if (clearStep && clearStep.type === 'clear') {
+      // The rainbow gem should have 50 + 500 = 550 bonus points
+      const rainbowClear = clearStep.cells.find((c) => c.gem.id === 100);
+      expect(rainbowClear).toBeDefined();
+      expect(rainbowClear?.points).toBe(550);
+
+      // The target normal gems should each have base points (50)
+      const normalClear = clearStep.cells.find((c) => c.gem.id === 101);
+      expect(normalClear).toBeDefined();
+      expect(normalClear?.points).toBe(50);
+
+      // The sum of individual cells points equals clearStep.points
+      const sumPts = clearStep.cells.reduce((acc, c) => acc + (c.points || 0), 0);
+      expect(clearStep.points).toBe(sumPts);
+    }
+  });
 });
+

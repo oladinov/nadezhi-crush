@@ -247,6 +247,10 @@ export class TimelinePlayer {
         : 0xffffff;
     this.fx.spawnBurst(originPos, colorHex, tier === 2 ? 24 : 15, 1.4);
 
+    if (step.points && step.points > 0) {
+      this.fx.spawnFloatingScore(originPos, step.points, '#facc15');
+    }
+
     done();
   }
 
@@ -312,9 +316,16 @@ export class TimelinePlayer {
 
       this.fx.spawnBurst(worldPos, colorHex, 8, 1.0);
 
-      // Spawn floating score for notable events or groups
-      if (idx === 0 || ptsPerGem >= 100) {
-        this.fx.spawnFloatingScore(worldPos, ptsPerGem);
+      const itemPts = item.points ?? ptsPerGem;
+      if (itemPts > 0) {
+        const scoreColor = itemPts >= 500 ? '#fde047' : '#fef08a';
+        if (delay > 0) {
+          gsap.delayedCall(delay, () => {
+            this.fx.spawnFloatingScore(worldPos, itemPts, scoreColor);
+          });
+        } else {
+          this.fx.spawnFloatingScore(worldPos, itemPts, scoreColor);
+        }
       }
 
       if (view) {

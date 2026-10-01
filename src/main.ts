@@ -51,7 +51,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnModalLoseRetry = document.getElementById('btn-modal-lose-retry')!;
 
   const modalLevelSelect = document.getElementById('modal-level-select')!;
-  const levelSelectGrid = document.getElementById('level-select-grid')!;
+  const levelSelectContainer = document.getElementById('level-select-container')!;
   const btnCloseLevelSelect = document.getElementById('btn-close-level-select')!;
 
   const btnHelp = document.getElementById('btn-help')!;
@@ -219,21 +219,108 @@ window.addEventListener('DOMContentLoaded', () => {
     game.restartLevel();
   });
 
-  // Level selector modal
+  // Level selector modal with biomes and difficulty grouping
+  interface BiomeGroupConfig {
+    name: string;
+    icon: string;
+    difficulty: string;
+    diffClass: string;
+    levels: number[];
+  }
+
+  const BIOME_GROUPS: BiomeGroupConfig[] = [
+    {
+      name: 'Praderas del Valle',
+      icon: '🌿',
+      difficulty: 'Fácil',
+      diffClass: 'diff-easy',
+      levels: [1, 2, 3, 4],
+    },
+    {
+      name: 'Colinas del Atardecer',
+      icon: '🌅',
+      difficulty: 'Normal',
+      diffClass: 'diff-normal',
+      levels: [5, 6, 7, 8],
+    },
+    {
+      name: 'Caverna de Cristales',
+      icon: '🔮',
+      difficulty: 'Desafiante',
+      diffClass: 'diff-challenging',
+      levels: [9, 10, 11, 12],
+    },
+    {
+      name: 'Bosque de las Luciérnagas',
+      icon: '🌲',
+      difficulty: 'Difícil',
+      diffClass: 'diff-hard',
+      levels: [13, 14, 15, 16],
+    },
+    {
+      name: 'Monte del Destino',
+      icon: '🌋',
+      difficulty: 'Experto',
+      diffClass: 'diff-expert',
+      levels: [17, 18, 19, 20],
+    },
+    {
+      name: 'Tierras Infinitas',
+      icon: '♾️',
+      difficulty: 'Procedural',
+      diffClass: 'diff-infinite',
+      levels: [21, 22, 23, 24, 25],
+    },
+  ];
+
   const openLevelSelect = () => {
-    levelSelectGrid.innerHTML = '';
-    const totalButtons = 25; // 20 curated + 5 infinite
-    for (let i = 1; i <= totalButtons; i++) {
-      const btn = document.createElement('button');
-      btn.className = `level-btn ${i === game.currentLevel ? 'active' : ''}`;
-      btn.textContent = i.toString();
-      btn.addEventListener('click', () => {
-        modalLevelSelect.classList.remove('active');
-        game.initLevel(i);
-      });
-      levelSelectGrid.appendChild(btn);
+    levelSelectContainer.innerHTML = '';
+
+    for (const group of BIOME_GROUPS) {
+      const card = document.createElement('div');
+      card.className = 'biome-group-card';
+
+      const header = document.createElement('div');
+      header.className = 'biome-group-header';
+
+      const title = document.createElement('div');
+      title.className = 'biome-group-title';
+      title.textContent = `${group.icon} ${group.name}`;
+
+      const badge = document.createElement('span');
+      badge.className = `biome-group-badge ${group.diffClass}`;
+      badge.textContent = group.difficulty;
+
+      header.appendChild(title);
+      header.appendChild(badge);
+      card.appendChild(header);
+
+      const grid = document.createElement('div');
+      grid.className = 'biome-levels-grid';
+
+      for (const lvl of group.levels) {
+        const btn = document.createElement('button');
+        btn.className = `level-btn ${lvl === game.currentLevel ? 'active' : ''}`;
+        btn.textContent = lvl.toString();
+        btn.addEventListener('click', () => {
+          modalLevelSelect.classList.remove('active');
+          game.initLevel(lvl);
+        });
+        grid.appendChild(btn);
+      }
+
+      card.appendChild(grid);
+      levelSelectContainer.appendChild(card);
     }
+
     modalLevelSelect.classList.add('active');
+
+    setTimeout(() => {
+      const activeBtn = levelSelectContainer.querySelector('.level-btn.active');
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 50);
   };
 
   btnLevels.addEventListener('click', openLevelSelect);

@@ -129,7 +129,7 @@ export class FXManager {
   /**
    * Spawns a floating score number sprite at a cell.
    */
-  public spawnFloatingScore(pos: THREE.Vector3, points: number) {
+  public spawnFloatingScore(pos: THREE.Vector3, points: number, colorHex: string = '#fef08a') {
     if (points <= 0) return;
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -139,7 +139,7 @@ export class FXManager {
     ctx.font = 'bold 36px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fef08a'; // Bright yellow
+    ctx.fillStyle = colorHex;
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 4;
     ctx.strokeText(`+${points}`, 64, 32);
