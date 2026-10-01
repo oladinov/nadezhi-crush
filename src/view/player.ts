@@ -558,6 +558,84 @@ export class TimelinePlayer {
     }
   }
 
+  /**
+   * Animates a satisfying cascading entrance of all gems dropping into the board.
+   * Gives the tactile and ergonomic feeling of a fresh new board.
+   */
+  public playBoardEntrance(board: Readonly<Board>): Promise<void> {
+    return new Promise((resolve) => {
+      const rows = board.length;
+      const cols = board[0].length;
+
+      const tl = gsap.timeline({
+        onComplete: () => {
+          this.removeTimeline(tl);
+          resolve();
+        },
+      });
+      this.activeTimelines.push(tl);
+
+      sound.playBoardFill();
+
+      // Gems fall into place column by column and row by row
+      for (let c = 0; c < cols; c++) {
+        for (let r = rows - 1; r >= 0; r--) {
+          const gem = board[r][c];
+          if (!gem) continue;
+
+          const view = this.gemManager.createGemView(gem);
+          const targetPos = this.scene.cellToWorld(r, c);
+
+          // Start position: high above board (offscreen)
+          const dropHeight = targetPos.y + 6.5 + (rows - r) * 0.7;
+          view.group.position.set(targetPos.x, dropHeight, 0);
+          view.group.scale.set(0.1, 0.1, 0.1);
+          this.scene.gemGroup.add(view.group);
+
+          // Staggered cascade: bottom gems land first, columns slightly staggered
+          const delay = (rows - 1 - r) * 0.05 + c * 0.035;
+          const duration = 0.38 + (rows - 1 - r) * 0.025;
+
+          tl.to(
+            view.group.position,
+            {
+              x: targetPos.x,
+              y: targetPos.y,
+              duration,
+              ease: 'power2.in',
+            },
+            delay
+          );
+
+          tl.to(
+            view.group.scale,
+            {
+              x: 1,
+              y: 1,
+              duration: 0.22,
+              ease: 'power2.out',
+            },
+            delay
+          );
+
+          // Satisfying squash and stretch upon landing
+          tl.to(
+            view.group.scale,
+            {
+              x: 1.16,
+              y: 0.86,
+              duration: 0.07,
+              yoyo: true,
+              repeat: 1,
+              ease: 'sine.out',
+            },
+            delay + duration
+          );
+        }
+      }
+    });
+  }
+
   public destroy() {
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
     for (const tl of this.activeTimelines) {

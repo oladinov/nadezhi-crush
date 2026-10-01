@@ -117,9 +117,11 @@ export class Match3Game {
     this.initLevel(this.currentLevel);
   }
 
-  public initLevel(levelNumber: number) {
+  public async initLevel(levelNumber: number) {
     this.currentLevel = levelNumber;
     const config = getLevelConfig(levelNumber);
+
+    const previousSkin: GemSkinMode = this.gemManager ? this.gemManager.skinMode : 'emotes';
 
     // Clean up previous scene if exists
     if (this.scene) {
@@ -134,9 +136,10 @@ export class Match3Game {
     // 1. Initialize Core Engine
     this.core = new CoreEngine(config);
 
-    // 2. Initialize Scene and View Systems
+    // 2. Initialize Scene and View Systems (empty board grid is rendered)
     this.scene = new GameScene(this.container, config.rows, config.cols);
     this.gemManager = new GemViewManager();
+    this.gemManager.setSkinMode(previousSkin);
     this.fx = new FXManager(this.scene);
     this.player = new TimelinePlayer(this.scene, this.gemManager, this.fx);
 
@@ -145,25 +148,18 @@ export class Match3Game {
       this.gemManager.updateViewGems(dt, time);
     });
 
-    // 3. Populate board meshes
-    const snapshot = this.core.snapshot;
-    for (let r = 0; r < config.rows; r++) {
-      for (let c = 0; c < config.cols; c++) {
-        const gem = snapshot[r][c];
-        if (gem) {
-          const view = this.gemManager.createGemView(gem);
-          const worldPos = this.scene.cellToWorld(r, c);
-          view.group.position.copy(worldPos);
-          this.scene.gemGroup.add(view.group);
-        }
-      }
-    }
-
-    // 4. Initialize Input Manager
+    // 3. Initialize Input Manager (locked while gems fall into place)
     this.input = new InputManager(this.scene, {
       onMoveRequested: (a, b) => this.handleMove(a, b),
       onSelectionChanged: (cell) => this.handleSelection(cell),
     });
+
+    this.state = 'Resolving';
+    this.input.inputLock = true;
+    this.notifyUI();
+
+    // 4. Animate cascading entrance into the empty board
+    await this.player.playBoardEntrance(this.core.snapshot);
 
     this.state = 'Idle';
     this.input.inputLock = false;

@@ -160,7 +160,7 @@ describe('Directed Fusion Matrix Tests', () => {
     expect(res.steps.some((s) => s.type === 'detonate')).toBe(true);
   });
 
-  it('Case 2: Rainbow + Normal destroys all gems of that color', () => {
+  it('Case 2: Rainbow + Normal destroys all gems of that color and clears the rainbow gem', () => {
     const board = makeBaseBoard();
     const a = { r: 2, c: 2 };
     const b = { r: 2, c: 3 };
@@ -182,6 +182,43 @@ describe('Directed Fusion Matrix Tests', () => {
     const res = engine.resolveMove(a, b);
     expect(res.accepted).toBe(true);
     expect(res.progress.collected[2]).toBeGreaterThan(5);
+
+    // Verify rainbow gem (id 200) was cleared in a clear step
+    const clearStep = res.steps.find((s) => s.type === 'clear' && s.cells.some((c) => c.gem.id === 200));
+    expect(clearStep).toBeDefined();
+
+    // Verify rainbow gem 200 no longer exists in board snapshot
+    const remainingIds = engine.snapshot.flat().filter(Boolean).map((g) => g!.id);
+    expect(remainingIds).not.toContain(200);
+  });
+
+  it('Case 2b: Dragging Normal into Rainbow also properly clears rainbow gem', () => {
+    const board = makeBaseBoard();
+    const a = { r: 2, c: 2 };
+    const b = { r: 2, c: 3 };
+    // Normal at a, Rainbow at b (player drags normal into rainbow)
+    board[a.r][a.c] = { id: 201, kind: 'normal', color: 2 };
+    board[b.r][b.c] = { id: 200, kind: 'rainbow' };
+
+    const config: LevelConfig = {
+      level: 998,
+      seed: 998,
+      rows: 8,
+      cols: 8,
+      colors: 4,
+      moves: 10,
+      goals: [{ type: 'collect', color: 2, count: 5 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    const res = engine.resolveMove(a, b);
+    expect(res.accepted).toBe(true);
+    const clearStep = res.steps.find((s) => s.type === 'clear' && s.cells.some((c) => c.gem.id === 200));
+    expect(clearStep).toBeDefined();
+
+    const remainingIds = engine.snapshot.flat().filter(Boolean).map((g) => g!.id);
+    expect(remainingIds).not.toContain(200);
   });
 
   it('Case 3: Rainbow + Bomb transforms all gems of that color into bombs and detonates them', () => {

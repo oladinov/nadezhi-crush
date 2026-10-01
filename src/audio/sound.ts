@@ -384,6 +384,33 @@ class SoundManager {
     osc.stop(now + 0.15);
   }
 
+  public playBoardFill() {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+
+    const now = this.ctx.currentTime;
+    const notes = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 659.25, 783.99];
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx || !this.sfxGainNode) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const time = now + idx * 0.055;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.14, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGainNode);
+
+      osc.start(time);
+      osc.stop(time + 0.18);
+    });
+  }
+
   public playWin() {
     this.userGesture();
     if (this.isMuted || !this.ctx || !this.sfxGainNode) return;

@@ -280,7 +280,8 @@ export class CoreEngine implements GridCore {
       this.commitClears(toClearMap, 'fusion', cascade, steps);
     } else if (fusion.type === 'rainbow_normal') {
       // Rainbow + Normal: destroy all of color k
-      const rainbowCell = gemA.kind === 'rainbow' ? a : b;
+      // Note: gemA is now at cell b, gemB is now at cell a
+      const rainbowCell = gemA.kind === 'rainbow' ? b : a;
       const color = fusion.color;
       this.progress.score += SPECIAL_POINTS.rainbowSimple;
 
@@ -338,8 +339,9 @@ export class CoreEngine implements GridCore {
       this.commitClears(toClearMap, 'rainbowTarget', cascade, steps);
     } else if (fusion.type === 'rainbow_bomb') {
       // Rainbow + Bomb: Transform all color k to bombs, then detonate in sequence
-      const rainbowCell = gemA.kind === 'rainbow' ? a : b;
-      const bombSwapCell = gemA.kind === 'rainbow' ? b : a;
+      // Note: gemA is now at cell b, gemB is now at cell a
+      const rainbowCell = gemA.kind === 'rainbow' ? b : a;
+      const bombSwapCell = gemA.kind === 'rainbow' ? a : b;
       const color = fusion.color;
       this.progress.score += SPECIAL_POINTS.rainbowBombFusion;
 
