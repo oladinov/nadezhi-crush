@@ -453,5 +453,28 @@ describe('Bomb Matching and Detonate Triggers', () => {
       expect(clearStep.points).toBe(sumPts);
     }
   });
+
+  it('ensures high-cascade sequences (e.g. Level 18) never leave un-cleared matches on board', () => {
+    const config = {
+      level: 18,
+      seed: hashString('level_18'),
+      rows: 8,
+      cols: 8,
+      colors: 5,
+      moves: 15,
+      goals: [{ type: 'score' as const, target: 26000 }],
+    };
+
+    const engine = new CoreEngine(config);
+    // Sequence that previously triggered >6 cascades and left a 3-in-a-row on board
+    engine.resolveMove({ r: 0, c: 1 }, { r: 1, c: 1 });
+    engine.resolveMove({ r: 1, c: 2 }, { r: 2, c: 2 });
+    const r3 = engine.resolveMove({ r: 5, c: 1 }, { r: 5, c: 2 });
+    expect(r3.accepted).toBe(true);
+
+    const matches = evaluateMatches(engine.snapshot as Board);
+    expect(matches.length).toBe(0);
+  });
 });
+
 

@@ -179,13 +179,12 @@ export class CoreEngine implements GridCore {
     } else {
       let cascade = 1;
       let matches = initialMatches;
-      const MAX_CASCADES = 6;
-      while (matches.length > 0 && cascade <= MAX_CASCADES) {
+      const MAX_SAFETY_CASCADES = 50;
+      while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
         this.resolveWave(matches, cascade, steps);
         this.applyGravity(steps);
         this.applyRefill(steps, cascade);
         cascade++;
-        if (cascade > MAX_CASCADES) break;
         matches = evaluateMatches(this.board);
       }
     }
@@ -454,13 +453,12 @@ export class CoreEngine implements GridCore {
     // Check subsequent cascades
     cascade++;
     let matches = evaluateMatches(this.board);
-    const MAX_FUSION_CASCADES = 6;
-    while (matches.length > 0 && cascade <= MAX_FUSION_CASCADES) {
+    const MAX_SAFETY_CASCADES = 50;
+    while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
       this.resolveWave(matches, cascade, steps);
       this.applyGravity(steps);
       this.applyRefill(steps, cascade);
       cascade++;
-      if (cascade > MAX_FUSION_CASCADES) break;
       matches = evaluateMatches(this.board);
     }
   }
