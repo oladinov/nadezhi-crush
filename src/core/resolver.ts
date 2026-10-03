@@ -28,7 +28,7 @@ import {
   getMostAbundantColor,
   manhattanDistance,
 } from './specials';
-import { getGemClearPoints, SPECIAL_POINTS } from './scoring';
+import { getComboRating, getGemClearPoints, SPECIAL_POINTS } from './scoring';
 import {
   cloneGoalProgress,
   createInitialGoalProgress,
@@ -55,7 +55,7 @@ export class CoreEngine implements GridCore {
     this.config = config;
     this.movesLeft = config.moves;
     this.progress = createInitialGoalProgress();
-    this.rngManager = new BoardRngManager(config.level, config.cols);
+    this.rngManager = new BoardRngManager(config.level, config.cols, config.seedKey);
 
     if (config.boardOverride) {
       this.board = cloneBoard(config.boardOverride);
@@ -181,6 +181,17 @@ export class CoreEngine implements GridCore {
       let matches = initialMatches;
       const MAX_SAFETY_CASCADES = 50;
       while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
+        const combo = getComboRating(cascade);
+        if (combo) {
+          this.progress.score += combo.points;
+          steps.push({
+            type: 'combo',
+            cascade,
+            title: combo.title,
+            tier: combo.tier,
+            points: combo.points,
+          });
+        }
         this.resolveWave(matches, cascade, steps);
         this.applyGravity(steps);
         this.applyRefill(steps, cascade);
@@ -245,6 +256,7 @@ export class CoreEngine implements GridCore {
         wave: 1,
         trigger: { type: 'fusion' },
         points: SPECIAL_POINTS.bombBombFusion,
+        isCrossBlast: true,
       });
 
       const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
@@ -455,6 +467,17 @@ export class CoreEngine implements GridCore {
     let matches = evaluateMatches(this.board);
     const MAX_SAFETY_CASCADES = 50;
     while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
+      const combo = getComboRating(cascade);
+      if (combo) {
+        this.progress.score += combo.points;
+        steps.push({
+          type: 'combo',
+          cascade,
+          title: combo.title,
+          tier: combo.tier,
+          points: combo.points,
+        });
+      }
       this.resolveWave(matches, cascade, steps);
       this.applyGravity(steps);
       this.applyRefill(steps, cascade);

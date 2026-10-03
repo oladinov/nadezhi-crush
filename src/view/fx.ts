@@ -12,7 +12,8 @@ interface Particle {
 
 export class FXManager {
   private scene: GameScene;
-  private selectionMesh: THREE.Mesh;
+  private selectionGroup: THREE.Group;
+  private selectionAccent: THREE.Mesh;
   private hintGroup: THREE.Group;
   private activeParticles: Particle[] = [];
   private particleGeo: THREE.PlaneGeometry;
@@ -21,18 +22,57 @@ export class FXManager {
     this.scene = scene;
     this.particleGeo = new THREE.PlaneGeometry(0.12, 0.12);
 
-    // Selection highlight mesh
-    const selGeo = new THREE.RingGeometry(0.44, 0.54, 32);
-    const selMat = new THREE.MeshBasicMaterial({
-      color: 0xfacc15, // Golden yellow
+    // Arcade neon-cyan targeting reticle ([ ] corner brackets + rotating accent)
+    this.selectionGroup = new THREE.Group();
+    const reticleMat = new THREE.MeshBasicMaterial({
+      color: 0x06b6d4, // Electric cyan
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      opacity: 0.95,
     });
-    this.selectionMesh = new THREE.Mesh(selGeo, selMat);
-    this.selectionMesh.position.set(0, 0, 0.1);
-    this.selectionMesh.visible = false;
-    this.scene.fxGroup.add(this.selectionMesh);
+
+    const armLength = 0.22;
+    const thickness = 0.05;
+    const offset = 0.44;
+
+    const horizGeo = new THREE.PlaneGeometry(armLength, thickness);
+    const vertGeo = new THREE.PlaneGeometry(thickness, armLength);
+
+    // 4 Corner brackets
+    const corners = [
+      { x: -offset, y: offset, hx: -offset + armLength / 2, vy: offset - armLength / 2 },
+      { x: offset, y: offset, hx: offset - armLength / 2, vy: offset - armLength / 2 },
+      { x: -offset, y: -offset, hx: -offset + armLength / 2, vy: -offset + armLength / 2 },
+      { x: offset, y: -offset, hx: offset - armLength / 2, vy: -offset + armLength / 2 },
+    ];
+
+    corners.forEach((c) => {
+      const hMesh = new THREE.Mesh(horizGeo, reticleMat);
+      hMesh.position.set(c.hx, c.y, 0);
+      this.selectionGroup.add(hMesh);
+
+      const vMesh = new THREE.Mesh(vertGeo, reticleMat);
+      vMesh.position.set(c.x, c.vy, 0);
+      this.selectionGroup.add(vMesh);
+    });
+
+    // Outer rotating corner accent diamond
+    const accentGeo = new THREE.RingGeometry(0.52, 0.54, 4);
+    const accentMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      side: THREE.DoubleSide,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      opacity: 0.75,
+    });
+    this.selectionAccent = new THREE.Mesh(accentGeo, accentMat);
+    this.selectionAccent.position.set(0, 0, 0);
+    this.selectionGroup.add(this.selectionAccent);
+
+    this.selectionGroup.position.set(0, 0, 0.25);
+    this.selectionGroup.visible = false;
+    this.scene.fxGroup.add(this.selectionGroup);
 
     // Hint group
     this.hintGroup = new THREE.Group();
@@ -46,12 +86,12 @@ export class FXManager {
 
   public showSelection(cell: Cell | null) {
     if (!cell) {
-      this.selectionMesh.visible = false;
+      this.selectionGroup.visible = false;
       return;
     }
     const worldPos = this.scene.cellToWorld(cell.r, cell.c);
-    this.selectionMesh.position.set(worldPos.x, worldPos.y, 0.1);
-    this.selectionMesh.visible = true;
+    this.selectionGroup.position.set(worldPos.x, worldPos.y, 0.25);
+    this.selectionGroup.visible = true;
   }
 
   public showHint(a: Cell, b: Cell) {
@@ -552,12 +592,321 @@ export class FXManager {
     });
   }
 
+  /**
+   * Spawns a cartoon squash-and-stretch "POP!" comic burst with starburst flash and confetti dots.
+   */
+  public spawnCartoonPop(pos: THREE.Vector3, colorHex: number) {
+    // 1. 10-pointed comic starburst flash
+    const shape = new THREE.Shape();
+    const points = 10;
+    for (let i = 0; i < points * 2; i++) {
+      const angle = (i * Math.PI) / points;
+      const r = i % 2 === 0 ? 0.62 : 0.26;
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      if (i === 0) shape.moveTo(x, y);
+      else shape.lineTo(x, y);
+    }
+    shape.closePath();
+
+    const starGeo = new THREE.ShapeGeometry(shape);
+    const starMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      opacity: 0.95,
+      side: THREE.DoubleSide,
+    });
+    const starMesh = new THREE.Mesh(starGeo, starMat);
+    starMesh.position.set(pos.x, pos.y, 0.4);
+    starMesh.scale.set(0.15, 0.15, 1);
+    this.scene.fxGroup.add(starMesh);
+
+    gsap.to(starMesh.scale, {
+      x: 1.25,
+      y: 1.25,
+      duration: 0.08,
+      ease: 'power2.out',
+      onComplete: () => {
+        gsap.to(starMesh.scale, {
+          x: 0,
+          y: 0,
+          duration: 0.12,
+          ease: 'power2.in',
+          onComplete: () => {
+            if (starMesh.parent) starMesh.parent.remove(starMesh);
+            starGeo.dispose();
+            starMat.dispose();
+          },
+        });
+      },
+    });
+
+    // 2. High-speed comic shockwave ring
+    const ringGeo = new THREE.RingGeometry(0.12, 0.24, 24);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: colorHex,
+      side: THREE.DoubleSide,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      opacity: 0.85,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(pos.x, pos.y, 0.38);
+    this.scene.fxGroup.add(ring);
+
+    gsap.to(ring.scale, {
+      x: 2.2,
+      y: 2.2,
+      duration: 0.2,
+      ease: 'power1.out',
+    });
+    gsap.to(ringMat, {
+      opacity: 0,
+      duration: 0.2,
+      ease: 'power2.in',
+      onComplete: () => {
+        if (ring.parent) ring.parent.remove(ring);
+        ringGeo.dispose();
+        ringMat.dispose();
+      },
+    });
+
+    // 3. 8 Radial cartoon confetti / puff particles
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4 + (Math.random() - 0.5) * 0.35;
+      const speed = 2.2 + Math.random() * 2.2;
+      const dotMat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? colorHex : 0xffffff,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 1,
+      });
+      const dot = new THREE.Mesh(this.particleGeo, dotMat);
+      dot.position.set(pos.x, pos.y, 0.39);
+      this.scene.fxGroup.add(dot);
+      this.activeParticles.push({
+        mesh: dot,
+        vel: new THREE.Vector3(Math.cos(angle) * speed, Math.sin(angle) * speed, 0),
+        life: 0,
+        maxLife: 0.25 + Math.random() * 0.15,
+      });
+    }
+  }
+
+  /**
+   * Bomberman-style cross blast: shoots high-intensity fiery columns of flame
+   * surging outwards to all 4 edges of the board, wiping the full row and column!
+   */
+  public spawnBombermanCrossBlast(center: THREE.Vector3): Promise<void> {
+    return new Promise((resolve) => {
+      const group = new THREE.Group();
+      this.scene.fxGroup.add(group);
+
+      const boardLimit = 4.2; // Extends across the 8x8 board
+
+      // 4 Cardinal Ray Directions: [dx, dy, length, angle, posX, posY]
+      const rays = [
+        // North
+        {
+          len: Math.max(0.5, boardLimit - center.y),
+          angle: Math.PI / 2,
+          midX: center.x,
+          midY: center.y + (boardLimit - center.y) / 2,
+        },
+        // South
+        {
+          len: Math.max(0.5, center.y - (-boardLimit)),
+          angle: -Math.PI / 2,
+          midX: center.x,
+          midY: center.y - (center.y - (-boardLimit)) / 2,
+        },
+        // East
+        {
+          len: Math.max(0.5, boardLimit - center.x),
+          angle: 0,
+          midX: center.x + (boardLimit - center.x) / 2,
+          midY: center.y,
+        },
+        // West
+        {
+          len: Math.max(0.5, center.x - (-boardLimit)),
+          angle: Math.PI,
+          midX: center.x - (center.x - (-boardLimit)) / 2,
+          midY: center.y,
+        },
+      ];
+
+      // Shake camera violently like Bomberman!
+      this.shake(4.2);
+
+      // Expanding fiery central sphere
+      const centerGeo = new THREE.RingGeometry(0.2, 0.9, 32);
+      const centerMat = new THREE.MeshBasicMaterial({
+        color: 0xfef08a,
+        side: THREE.DoubleSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.95,
+      });
+      const centerMesh = new THREE.Mesh(centerGeo, centerMat);
+      centerMesh.position.set(center.x, center.y, 0.38);
+      group.add(centerMesh);
+
+      gsap.to(centerMesh.scale, {
+        x: 3.2,
+        y: 3.2,
+        duration: 0.35,
+        ease: 'power2.out',
+      });
+      gsap.to(centerMat, {
+        opacity: 0,
+        duration: 0.35,
+        ease: 'power2.in',
+      });
+
+      // Construct and shoot each cardinal fiery jet
+      rays.forEach((r) => {
+        // Outer flame jet
+        const flameGeo = new THREE.PlaneGeometry(r.len, 0.72);
+        const flameMat = new THREE.MeshBasicMaterial({
+          color: 0xef4444, // Fiery red-orange
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          opacity: 0.9,
+          side: THREE.DoubleSide,
+        });
+        const flameMesh = new THREE.Mesh(flameGeo, flameMat);
+        flameMesh.position.set(r.midX, r.midY, 0.34);
+        flameMesh.rotation.z = r.angle;
+        flameMesh.scale.set(0.1, 0.2, 1);
+        group.add(flameMesh);
+
+        // Inner searing plasma core
+        const coreGeo = new THREE.PlaneGeometry(r.len, 0.32);
+        const coreMat = new THREE.MeshBasicMaterial({
+          color: 0xfef08a, // Pure bright yellow-white
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
+        });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        coreMesh.position.set(r.midX, r.midY, 0.36);
+        coreMesh.rotation.z = r.angle;
+        coreMesh.scale.set(0.1, 0.2, 1);
+        group.add(coreMesh);
+
+        // Animate flame blast rushing out
+        gsap.to([flameMesh.scale, coreMesh.scale], {
+          x: 1.0,
+          y: 1.0,
+          duration: 0.22,
+          ease: 'power3.out',
+        });
+
+        gsap.to([flameMat, coreMat], {
+          opacity: 0,
+          duration: 0.18,
+          delay: 0.2,
+          ease: 'power2.in',
+        });
+
+        // Spawn fire puff particles along the beam
+        for (let i = 0; i < 4; i++) {
+          const t = Math.random();
+          const pGeo = new THREE.PlaneGeometry(0.18, 0.18);
+          const pMat = new THREE.MeshBasicMaterial({
+            color: 0xf97316,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            opacity: 0.9,
+          });
+          const pMesh = new THREE.Mesh(pGeo, pMat);
+          const px = center.x + (r.midX - center.x) * (t * 2);
+          const py = center.y + (r.midY - center.y) * (t * 2);
+          pMesh.position.set(px, py, 0.37);
+          this.scene.fxGroup.add(pMesh);
+          this.activeParticles.push({
+            mesh: pMesh,
+            vel: new THREE.Vector3((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5, 0),
+            life: 0,
+            maxLife: 0.3 + Math.random() * 0.2,
+          });
+        }
+      });
+
+      // Cleanup and resolve after explosion sweeps
+      setTimeout(() => {
+        if (group.parent) group.parent.remove(group);
+        resolve();
+      }, 380);
+    });
+  }
+
+  /**
+   * Displays an arcade Killer Instinct-style Combo Banner overlay
+   */
+  public showComboBanner(cascade: number, title: string, tier: number, points: number) {
+    const container = document.getElementById('combo-banner-container');
+    if (!container) return;
+
+    // Clear previous banner if any
+    container.innerHTML = '';
+
+    const banner = document.createElement('div');
+    banner.className = `combo-banner tier-${tier}`;
+    banner.innerHTML = `
+      <div class="combo-banner-cascade">CASCADA ×${cascade}</div>
+      <div class="combo-banner-title">${title}</div>
+      <div class="combo-banner-points">+${points.toLocaleString()} PTS</div>
+    `;
+
+    container.appendChild(banner);
+
+    // Screen shake proportional to tier
+    this.shake(1.5 + tier * 0.5);
+
+    // GSAP animation: punchy slam zoom, pulse, slide up and fade
+    gsap.fromTo(
+      banner,
+      { scale: 2.2, opacity: 0, rotation: -6 },
+      {
+        scale: 1,
+        opacity: 1,
+        rotation: -2,
+        duration: 0.22,
+        ease: 'back.out(2)',
+        onComplete: () => {
+          gsap.to(banner, {
+            scale: 1.05,
+            duration: 0.35,
+            yoyo: true,
+            repeat: 1,
+            ease: 'sine.inOut',
+            onComplete: () => {
+              gsap.to(banner, {
+                y: -35,
+                opacity: 0,
+                duration: 0.3,
+                ease: 'power2.in',
+                onComplete: () => {
+                  if (banner.parentElement) banner.parentElement.removeChild(banner);
+                },
+              });
+            },
+          });
+        },
+      }
+    );
+  }
+
   private update(dt: number, time: number) {
     // Pulse selection indicator
-    if (this.selectionMesh.visible) {
-      const s = 1.0 + 0.08 * Math.sin(time * 8);
-      this.selectionMesh.scale.set(s, s, 1);
-      this.selectionMesh.rotation.z += dt * 1.5;
+    if (this.selectionGroup.visible) {
+      const s = 1.0 + 0.05 * Math.sin(time * 6);
+      this.selectionGroup.scale.set(s, s, 1);
+      this.selectionAccent.rotation.z += dt * 2.0;
     }
 
     // Update particles

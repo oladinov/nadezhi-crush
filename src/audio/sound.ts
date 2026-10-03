@@ -23,6 +23,7 @@ class SoundManager {
   public sfxVolume: number = 0.8;
   public bgmVolume: number = 0.55;
   public isMuted: boolean = false;
+  public isBgmMuted: boolean = false;
 
   private masterGainNode: GainNode | null = null;
   private sfxGainNode: GainNode | null = null;
@@ -34,6 +35,7 @@ class SoundManager {
 
   constructor() {
     this.initAudioElement();
+    this.setupLifecycleListeners();
   }
 
   public get currentTrack(): MusicTrack {
@@ -47,11 +49,48 @@ class SoundManager {
   private initAudioElement() {
     try {
       this.bgmAudio = new Audio(FANTASY_PLAYLIST[this.currentTrackIndex].file);
-      this.bgmAudio.loop = true;
+      this.bgmAudio.loop = false; // Continuously cycles through playlist!
       this.bgmAudio.preload = 'auto';
+
+      this.bgmAudio.addEventListener('ended', () => {
+        // Continuous playlist progression without sudden silence
+        this.nextTrack();
+      });
+
+      this.bgmAudio.addEventListener('error', (e) => {
+        console.warn('Audio playback error, recovering:', e);
+        setTimeout(() => {
+          if (this.isBgmPlaying && !this.isMuted && !this.isBgmMuted) {
+            this.loadTrack(this.currentTrackIndex);
+          }
+        }, 1500);
+      });
+
       this.updateBgmVolume();
     } catch {
       // Audio element fallback
+    }
+  }
+
+  private setupLifecycleListeners() {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          this.resumeAudioContextAndBgm();
+        }
+      });
+      window.addEventListener('focus', () => {
+        this.resumeAudioContextAndBgm();
+      });
+    }
+  }
+
+  public resumeAudioContextAndBgm() {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+    if (this.isBgmPlaying && !this.isMuted && !this.isBgmMuted && this.bgmAudio && this.bgmAudio.paused) {
+      this.bgmAudio.play().catch(() => {});
     }
   }
 
@@ -106,7 +145,7 @@ class SoundManager {
 
   private updateBgmVolume() {
     if (this.bgmAudio) {
-      const effectiveVol = this.isMuted ? 0 : this.masterVolume * this.bgmVolume;
+      const effectiveVol = (this.isMuted || this.isBgmMuted) ? 0 : this.masterVolume * this.bgmVolume;
       this.bgmAudio.volume = Math.max(0, Math.min(1, effectiveVol));
     }
   }
@@ -130,6 +169,25 @@ class SoundManager {
   public toggleMute(): boolean {
     this.setMuted(!this.isMuted);
     return this.isMuted;
+  }
+
+  public setBgmMuted(muted: boolean) {
+    this.isBgmMuted = muted;
+    this.updateBgmVolume();
+    if (this.isBgmMuted) {
+      if (this.bgmAudio && !this.bgmAudio.paused) {
+        this.bgmAudio.pause();
+      }
+    } else {
+      if (this.isBgmPlaying && this.bgmAudio && this.bgmAudio.paused) {
+        this.bgmAudio.play().catch(() => {});
+      }
+    }
+  }
+
+  public toggleBgmMute(): boolean {
+    this.setBgmMuted(!this.isBgmMuted);
+    return this.isBgmMuted;
   }
 
   public userGesture() {
@@ -460,6 +518,131 @@ class SoundManager {
 
       osc.start(time);
       osc.stop(time + 0.22);
+    });
+  }
+
+  /**
+   * Cartoonish, punchy "Pop!" sound for dramatic gem bursts.
+   */
+  public playPopSound(pitchMult = 1.0) {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    // Snappy pitch drop from high to punchy low bubble pop
+    osc.type = 'sine';
+    const startFreq = 720 * pitchMult;
+    const endFreq = 160 * pitchMult;
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.08);
+
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGainNode);
+
+    osc.start(now);
+    osc.stop(now + 0.09);
+
+    // Punchy snap click
+    const clickOsc = this.ctx.createOscillator();
+    const clickGain = this.ctx.createGain();
+    clickOsc.type = 'triangle';
+    clickOsc.frequency.setValueAtTime(1200 * pitchMult, now);
+    clickOsc.frequency.exponentialRampToValueAtTime(300, now + 0.025);
+    clickGain.gain.setValueAtTime(0.2, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+    clickOsc.connect(clickGain);
+    clickGain.connect(this.sfxGainNode);
+    clickOsc.start(now);
+    clickOsc.stop(now + 0.025);
+  }
+
+  /**
+   * Powerful fiery cross-blast sound for Bomb + Bomb Bomberman fusion.
+   */
+  public playCrossBlast() {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+
+    const now = this.ctx.currentTime;
+
+    // 1. Deep rumble sub-bass
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(140, now);
+    subOsc.frequency.exponentialRampToValueAtTime(38, now + 0.5);
+    subGain.gain.setValueAtTime(0.6, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    subOsc.connect(subGain);
+    subGain.connect(this.sfxGainNode);
+    subOsc.start(now);
+    subOsc.stop(now + 0.55);
+
+    // 2. High-energy laser/flame rushing whoosh
+    const laserOsc = this.ctx.createOscillator();
+    const laserGain = this.ctx.createGain();
+    laserOsc.type = 'sawtooth';
+    laserOsc.frequency.setValueAtTime(650, now);
+    laserOsc.frequency.exponentialRampToValueAtTime(120, now + 0.4);
+    laserGain.gain.setValueAtTime(0.35, now);
+    laserGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    laserOsc.connect(laserGain);
+    laserGain.connect(this.sfxGainNode);
+    laserOsc.start(now);
+    laserOsc.stop(now + 0.45);
+  }
+
+  /**
+   * Triumphant arcade combo chime chord (Killer Instinct style).
+   */
+  public playComboChime(tier: number) {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+
+    const now = this.ctx.currentTime;
+    let notes: number[] = [];
+
+    switch (tier) {
+      case 1: // Good combo: C5, E5, G5
+        notes = [523.25, 659.25, 783.99];
+        break;
+      case 2: // Super combo: E5, G5, B5, E6
+        notes = [659.25, 783.99, 987.77, 1318.51];
+        break;
+      case 3: // Mega combo: C5, G5, C6, E6, G6
+        notes = [523.25, 783.99, 1046.50, 1318.51, 1567.98];
+        break;
+      case 4: // Ultra combo: D5, F#5, A5, D6, F#6, A6
+        notes = [587.33, 739.99, 880.00, 1174.66, 1479.98, 1760.00];
+        break;
+      default: // Monster combo: C5, E5, G5, C6, E6, G6, C7
+        notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00];
+        break;
+    }
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx || !this.sfxGainNode) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const time = now + idx * 0.05;
+
+      osc.type = tier >= 4 ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.24, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGainNode);
+
+      osc.start(time);
+      osc.stop(time + 0.35);
     });
   }
 }

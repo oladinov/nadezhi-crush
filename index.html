@@ -42,8 +42,9 @@
           <span id="volume-val" class="volume-label">70%</span>
         </div>
 
-        <!-- MUSIC TRACK SWITCHER -->
-        <button id="btn-music-next" class="btn-icon" title="Cambiar Canción (Siguiente Pista)">🎵</button>
+        <!-- MUSIC CONTROLS (MUTE BGM INDEPENDENTLY & NEXT TRACK) -->
+        <button id="btn-music-toggle" class="btn-icon" title="Mutear / Activar Música (BGM)">🎵</button>
+        <button id="btn-music-next" class="btn-icon" title="Cambiar Canción (Siguiente Pista)">⏭️</button>
 
         <!-- SKIN TOGGLE (EMOTES DEFAULT) -->
         <button id="btn-skin" class="btn-icon" title="Cambiar Apariencia (Emotes / Gemas)">🎭</button>
@@ -55,6 +56,9 @@
         <button id="btn-help" class="btn-icon" title="Guía y Créditos">❓</button>
       </div>
     </header>
+
+    <!-- KILLER INSTINCT STYLE COMBO BANNER -->
+    <div id="combo-banner-container" class="combo-banner-container"></div>
 
     <!-- FLOATING TOAST BANNER -->
     <div id="toast-banner" class="toast-banner">
@@ -191,13 +195,44 @@
             </div>
           </div>
 
-          <!-- SECTION 3: CRÉDITOS Y LICENCIAS -->
+          <!-- SECTION 3: CALIFICADOR DE COMBOS -->
+          <div class="help-section">
+            <h3 class="help-heading">⚡ Calificador de Combos</h3>
+            <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4; margin-bottom: 8px;">
+              ¡Encadena 3 o más cascadas sucesivas para desatar combos arcade con bonificaciones masivas de puntos!
+            </p>
+            <div class="help-grid">
+              <div class="help-item">
+                <div class="help-item-icon" style="color: #38bdf8; font-size: 1rem;">×3</div>
+                <div class="help-item-info"><strong>¡Buen Combo!</strong><span>+300 puntos de bonificación</span></div>
+              </div>
+              <div class="help-item">
+                <div class="help-item-icon" style="color: #facc15; font-size: 1rem;">×4</div>
+                <div class="help-item-info"><strong>¡Súper Combo!</strong><span>+600 puntos de bonificación</span></div>
+              </div>
+              <div class="help-item">
+                <div class="help-item-icon" style="color: #c084fc; font-size: 1rem;">×5</div>
+                <div class="help-item-info"><strong>¡Mega Combo!</strong><span>+1,200 puntos de bonificación</span></div>
+              </div>
+              <div class="help-item">
+                <div class="help-item-icon" style="color: #f97316; font-size: 1rem;">×6</div>
+                <div class="help-item-info"><strong>¡Increíble!</strong><span>+2,500 puntos de bonificación</span></div>
+              </div>
+              <div class="help-item">
+                <div class="help-item-icon" style="color: #ec4899; font-size: 1rem;">×7+</div>
+                <div class="help-item-info"><strong>¡Monstruoso!</strong><span>+5,000 puntos de bonificación</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 4: CRÉDITOS Y LICENCIAS -->
           <div class="help-section">
             <h3 class="help-heading">📜 Créditos y Licencias</h3>
             <div class="help-credits-text">
               <p>🎵 <strong>Música de fantasía:</strong> Compuesta por <em>Kevin MacLeod</em> (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>) bajo licencia Creative Commons: By Attribution 4.0 (CC BY 4.0).</p>
               <p>Pistas incluidas: <em>Folk Round, Minstrel Guild, Celtic Impulse, Village Consort</em>.</p>
-              <p style="margin-top: 6px;">🎮 <strong>Versión:</strong> <span style="color: #facc15; font-weight: 700;">v1.1.0</span> · Desarrollado con Three.js, Vite, TypeScript y GSAP.</p>
+              <p style="margin-top: 8px;">🎮 <strong>Desarrollado por:</strong> <strong style="color: #facc15; font-size: 0.9rem;">Dûrgrimst Az Ladinû</strong></p>
+              <p style="margin-top: 4px; font-size: 0.75rem; color: #64748b;">Versión v1.2.0 · Three.js, Vite, TypeScript y GSAP.</p>
             </div>
           </div>
         </div>

@@ -36,6 +36,7 @@ export const COLOR_METADATA: ColorMeta[] = [
 
 export interface BiomeInfo {
   name: string;
+  icon: string;
   image: string;
   desc: string;
 }
@@ -44,32 +45,44 @@ export function getLevelBiome(level: number): BiomeInfo {
   if (level <= 4) {
     return {
       name: 'Praderas del Valle',
+      icon: '🌿',
       image: '/fantasy_plains.jpg',
       desc: 'Campos verdes y cielo despejado de la Comarca.',
     };
   } else if (level <= 8) {
     return {
       name: 'Colinas del Atardecer',
+      icon: '🌅',
       image: '/fantasy_sunset.jpg',
       desc: 'Luz dorada sobre pacíficas aldeas con chimeneas humeantes.',
     };
   } else if (level <= 12) {
     return {
       name: 'Caverna de Cristales',
+      icon: '🔮',
       image: '/fantasy_cavern.jpg',
       desc: 'Profundidades ancestrales iluminadas por antorchas y gemas místicas.',
     };
   } else if (level <= 16) {
     return {
       name: 'Bosque de las Luciérnagas',
+      icon: '🌲',
       image: '/fantasy_night.jpg',
       desc: 'Noche estrellada bajo las ramas del Gran Árbol sagrado.',
     };
-  } else {
+  } else if (level <= 20) {
     return {
       name: 'Monte del Destino',
+      icon: '🌋',
       image: '/fantasy_volcano.jpg',
       desc: 'Tierras volcánicas con ríos de fuego y desafíos ardientes.',
+    };
+  } else {
+    return {
+      name: 'Tierras Infinitas',
+      icon: '♾️',
+      image: '/fantasy_infinite.jpg',
+      desc: 'Islas celestiales flotantes y desafíos cósmicos infinitos.',
     };
   }
 }
@@ -93,6 +106,7 @@ export interface UIStateUpdate {
   state: GameState;
   skinMode: GemSkinMode;
   isMuted: boolean;
+  isBgmMuted: boolean;
   volume: number;
   biome: BiomeInfo;
   currentTrack: MusicTrack;
@@ -266,6 +280,12 @@ export class Match3Game {
     this.notifyUI();
   }
 
+  public toggleBgmMute(): boolean {
+    const muted = sound.toggleBgmMute();
+    this.notifyUI();
+    return muted;
+  }
+
   public setVolume(val: number) {
     sound.setMasterVolume(val);
     this.notifyUI();
@@ -363,6 +383,7 @@ export class Match3Game {
       state: this.state,
       skinMode: this.gemManager.skinMode,
       isMuted: sound.isMuted,
+      isBgmMuted: sound.isBgmMuted,
       volume: sound.masterVolume,
       biome,
       currentTrack: sound.currentTrack,

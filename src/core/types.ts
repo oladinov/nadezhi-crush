@@ -32,6 +32,7 @@ export interface GoalProgress {
 export interface LevelConfig {
   level: number;
   seed: number; // hashString(`level_${level}`)
+  seedKey?: string | number;
   rows: number;
   cols: number;
   colors: 4 | 5; // niveles tempranos usan 4 tipos
@@ -69,11 +70,19 @@ export type Step =
       wave: number;
       trigger?: DetonateTrigger;
       points?: number;
+      isCrossBlast?: boolean;
     }
   | { type: 'spawnSpecial'; cell: Cell; gem: Gem; from: Cell[] }
   | { type: 'gravity'; moves: { id: number; from: Cell; to: Cell }[] }
   | { type: 'refill'; spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[] }
-  | { type: 'shuffle'; moves: { id: number; from: Cell; to: Cell }[] };
+  | { type: 'shuffle'; moves: { id: number; from: Cell; to: Cell }[] }
+  | {
+      type: 'combo';
+      cascade: number;
+      title: string;
+      tier: number;
+      points: number;
+    };
 
 export interface TurnResult {
   accepted: boolean;

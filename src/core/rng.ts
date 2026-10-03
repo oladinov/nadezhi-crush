@@ -36,12 +36,13 @@ export class BoardRngManager {
   public shuffleRng: Mulberry32;
   public spawnRngs: Mulberry32[];
 
-  constructor(public readonly level: number, public readonly cols: number) {
-    this.initRng = new Mulberry32(hashString(`level_${level}:init`));
-    this.shuffleRng = new Mulberry32(hashString(`level_${level}:shuffle`));
+  constructor(public readonly level: number, public readonly cols: number, seedKey?: string | number) {
+    const key = seedKey !== undefined ? `seed_${seedKey}` : `level_${level}`;
+    this.initRng = new Mulberry32(hashString(`${key}:init`));
+    this.shuffleRng = new Mulberry32(hashString(`${key}:shuffle`));
     this.spawnRngs = [];
     for (let c = 0; c < cols; c++) {
-      this.spawnRngs.push(new Mulberry32(hashString(`level_${level}:spawn:${c}`)));
+      this.spawnRngs.push(new Mulberry32(hashString(`${key}:spawn:${c}`)));
     }
   }
 

@@ -78,6 +78,9 @@ export class TimelinePlayer {
         case 'shuffle':
           this.handleShuffle(step, resolve);
           break;
+        case 'combo':
+          this.handleCombo(step, resolve);
+          break;
         default:
           resolve();
       }
@@ -251,6 +254,11 @@ export class TimelinePlayer {
       this.fx.spawnFloatingScore(originPos, step.points, '#facc15');
     }
 
+    if (step.isCrossBlast) {
+      sound.playCrossBlast();
+      await this.fx.spawnBombermanCrossBlast(originPos);
+    }
+
     done();
   }
 
@@ -329,25 +337,41 @@ export class TimelinePlayer {
       }
 
       if (view) {
+        // Dramatic cartoon pop: swell anticipation, snappy pop, burst flash, juicy pop sound
+        tl.to(
+          view.group.scale,
+          {
+            x: 1.25,
+            y: 1.25,
+            duration: 0.08,
+            ease: 'back.out(2)',
+          },
+          delay
+        );
         tl.to(
           view.group.scale,
           {
             x: 0,
             y: 0,
-            duration: 0.18,
-            ease: 'power2.in',
+            duration: 0.12,
+            ease: 'back.in(2.5)',
           },
-          delay
+          delay + 0.08
         );
         tl.to(
           view.mesh.rotation,
           {
             z: Math.PI * 0.5,
-            duration: 0.18,
+            duration: 0.2,
             ease: 'power1.in',
           },
           delay
         );
+
+        gsap.delayedCall(delay + 0.07, () => {
+          this.fx.spawnCartoonPop(worldPos, colorHex);
+          sound.playPopSound(1.0 + Math.min(0.6, (step.cascade - 1) * 0.12));
+        });
       }
     });
   }
@@ -505,6 +529,14 @@ export class TimelinePlayer {
         0
       );
     }
+  }
+
+  private handleCombo(step: Extract<Step, { type: 'combo' }>, done: () => void) {
+    sound.playComboChime(step.tier);
+    this.fx.showComboBanner(step.cascade, step.title, step.tier, step.points);
+    setTimeout(() => {
+      done();
+    }, 180);
   }
 
   /**

@@ -122,13 +122,17 @@ export const CURATED_LEVELS: LevelConfig[] = [
   {
     level: 9,
     seed: hashString('level_9'),
+    seedKey: 'l9_balanced_1',
     rows: 8,
     cols: 8,
     colors: 5,
     moves: 22,
-    goals: [{ type: 'create', kind: 'rainbow', count: 1 }],
+    goals: [
+      { type: 'create', kind: 'rainbow', count: 1 },
+      { type: 'score', target: 5000 },
+    ],
     title: 'El Prisma Arcoíris',
-    description: 'Combina 5 en línea para forjar el Arcoíris.',
+    description: 'Combina 5 en línea para forjar el Arcoíris y alcanza 5,000 pts.',
   },
 
   // Nivel 10: Poder Cromático

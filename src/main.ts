@@ -15,6 +15,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const uiGoals = document.getElementById('ui-goals')!;
 
   const btnSound = document.getElementById('btn-sound')!;
+  const btnMusicToggle = document.getElementById('btn-music-toggle')!;
   const btnMusicNext = document.getElementById('btn-music-next')!;
   const volumeSlider = document.getElementById('volume-slider') as HTMLInputElement;
   const volumeVal = document.getElementById('volume-val')!;
@@ -65,7 +66,7 @@ window.addEventListener('DOMContentLoaded', () => {
     uiLevelBadge.textContent = `Nivel ${ui.level}`;
     uiLevelName.textContent = `${ui.title} ▾`;
     if (uiBiomeName) {
-      uiBiomeName.textContent = `🌿 ${ui.biome.name}`;
+      uiBiomeName.textContent = `${ui.biome.icon} ${ui.biome.name}`;
     }
     uiMoves.textContent = ui.movesLeft.toString();
     uiScore.textContent = ui.score.toLocaleString();
@@ -76,13 +77,25 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     if (lastBiomeImage && lastBiomeImage !== ui.biome.image) {
-      showToast('🗺️', `Nueva Región: ${ui.biome.name}`);
+      showToast(ui.biome.icon, `Nueva Región: ${ui.biome.name}`);
     }
     lastBiomeImage = ui.biome.image;
 
-    // Music button tooltip
+    // Music buttons
+    if (btnMusicToggle) {
+      if (ui.isBgmMuted) {
+        btnMusicToggle.textContent = '🔇';
+        btnMusicToggle.classList.add('music-muted');
+        btnMusicToggle.title = 'Música silenciada (efectos activos) • Click para activar música';
+      } else {
+        btnMusicToggle.textContent = '🎵';
+        btnMusicToggle.classList.remove('music-muted');
+        btnMusicToggle.title = 'Música activa • Click para silenciar solo la música';
+      }
+    }
+
     if (btnMusicNext && ui.currentTrack) {
-      btnMusicNext.title = `Música: ${ui.currentTrack.name} • ${ui.currentTrack.artist} (Click para cambiar)`;
+      btnMusicNext.title = `Siguiente Canción (Actual: ${ui.currentTrack.name} • ${ui.currentTrack.artist})`;
     }
 
     // Moves urgency color
@@ -170,10 +183,20 @@ window.addEventListener('DOMContentLoaded', () => {
     game.toggleMute();
   });
 
+  btnMusicToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const muted = game.toggleBgmMute();
+    if (muted) {
+      showToast('🔇', 'Música silenciada (efectos de sonido activos)');
+    } else {
+      showToast('🎵', `Música activada: ${sound.currentTrack.name}`);
+    }
+  });
+
   btnMusicNext.addEventListener('click', (e) => {
     e.stopPropagation();
     const track = game.nextMusicTrack();
-    showToast('🎵', `Música: ${track.name} (${track.artist})`);
+    showToast('⏭️', `Música: ${track.name} (${track.artist})`);
   });
 
   volumeSlider.addEventListener('input', (e) => {
