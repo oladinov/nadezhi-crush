@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { CoreEngine } from '../src/core/resolver';
 import { hashString, Mulberry32 } from '../src/core/rng';
-import { LevelConfig, Board, Gem } from '../src/core/types';
+import { LevelConfig, Board } from '../src/core/types';
 import { evaluateMatches } from '../src/core/patterns';
-import { computeBoardHash, createEmptyBoard } from '../src/core/board';
-import { findValidMoves } from '../src/core/moves';
+import { createEmptyBoard } from '../src/core/board';
 
 describe('Deterministic PRNG', () => {
   it('hashString produces expected 32-bit FNV-1a hashes', () => {
@@ -425,7 +424,7 @@ describe('Bomb Matching and Detonate Triggers', () => {
       seed: 200,
       rows: 4,
       cols: 4,
-      colors: 3,
+      colors: 4,
       moves: 10,
       goals: [{ type: 'score', target: 1000 }],
       boardOverride: board,
@@ -455,7 +454,7 @@ describe('Bomb Matching and Detonate Triggers', () => {
   });
 
   it('ensures high-cascade sequences (e.g. Level 18) never leave un-cleared matches on board', () => {
-    const config = {
+    const config: LevelConfig = {
       level: 18,
       seed: hashString('level_18'),
       rows: 8,
@@ -474,6 +473,87 @@ describe('Bomb Matching and Detonate Triggers', () => {
 
     const matches = evaluateMatches(engine.snapshot as Board);
     expect(matches.length).toBe(0);
+  });
+
+  it('Rainbow + Rainbow fusion triggers black hole vortex step, clears entire board, and awards massive points', () => {
+    const config: LevelConfig = {
+      level: 1,
+      seed: 42,
+      rows: 8,
+      cols: 8,
+      colors: 5,
+      moves: 20,
+      goals: [{ type: 'score' as const, target: 50000 }],
+    };
+
+    const engine = new CoreEngine(config);
+    // Force two adjacent rainbow gems
+    const board = engine.getBoard();
+    board[3][3] = { id: 991, kind: 'rainbow' };
+    board[3][4] = { id: 992, kind: 'rainbow' };
+
+    const result = engine.resolveMove({ r: 3, c: 3 }, { r: 3, c: 4 });
+    expect(result.accepted).toBe(true);
+
+    // Verify clear step with black hole properties
+    const blackHoleClear = result.steps.find((s) => s.type === 'clear' && s.isBlackHole);
+    expect(blackHoleClear).toBeDefined();
+    if (blackHoleClear && blackHoleClear.type === 'clear') {
+      expect(blackHoleClear.vortexCenter).toEqual({ r: 3, c: 4 });
+      // Cleared entire 8x8 board (64 gems)
+      expect(blackHoleClear.cells.length).toBe(64);
+      // Points should be at least 10,000 base + 64 * 150
+      expect(blackHoleClear.points).toBeGreaterThanOrEqual(19000);
+    }
+
+    // Verify combo step
+    const comboStep = result.steps.find((s) => s.type === 'combo');
+    expect(comboStep).toBeDefined();
+    if (comboStep && comboStep.type === 'combo') {
+      expect(comboStep.title).toBe('¡VÓRTICE CÓSMICO!');
+      expect(comboStep.tier).toBe(5);
+    }
+
+    // Verify boardClear step with bonus points and random exclamation
+    const boardClearStep = result.steps.find((s) => s.type === 'boardClear');
+    expect(boardClearStep).toBeDefined();
+    if (boardClearStep && boardClearStep.type === 'boardClear') {
+      expect(boardClearStep.points).toBe(5000);
+      expect(boardClearStep.title.length).toBeGreaterThan(0);
+    }
+
+    // Verify resulting board has no holes or un-cleared matches
+    const finalMatches = evaluateMatches(engine.snapshot as Board);
+    expect(finalMatches.length).toBe(0);
+  });
+
+  it('detects full board clear during fusion or cascade and awards bonus with random exclamation', () => {
+    const config: LevelConfig = {
+      level: 1,
+      seed: 99,
+      rows: 4,
+      cols: 4,
+      colors: 4,
+      moves: 10,
+      goals: [{ type: 'score' as const, target: 10000 }],
+    };
+
+    const engine = new CoreEngine(config);
+    const board = engine.getBoard();
+    // Set up two bombs in center of 4x4 board
+    board[1][1] = { id: 101, kind: 'bomb', color: 0, tier: 1 };
+    board[1][2] = { id: 102, kind: 'bomb', color: 1, tier: 1 };
+
+    // Swap the two bombs: 5x5 area + row + col clears entire 4x4 board!
+    const result = engine.resolveMove({ r: 1, c: 1 }, { r: 1, c: 2 });
+    expect(result.accepted).toBe(true);
+
+    const boardClearStep = result.steps.find((s) => s.type === 'boardClear');
+    expect(boardClearStep).toBeDefined();
+    if (boardClearStep && boardClearStep.type === 'boardClear') {
+      expect(boardClearStep.points).toBe(5000);
+      expect(boardClearStep.title.length).toBeGreaterThan(0);
+    }
   });
 });
 

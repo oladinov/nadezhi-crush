@@ -61,6 +61,8 @@ export type Step =
       cause: ClearCause;
       cascade: number;
       points: number;
+      isBlackHole?: boolean;
+      vortexCenter?: Cell;
     }
   | {
       type: 'detonate';
@@ -81,6 +83,11 @@ export type Step =
       cascade: number;
       title: string;
       tier: number;
+      points: number;
+    }
+  | {
+      type: 'boardClear';
+      title: string;
       points: number;
     };
 

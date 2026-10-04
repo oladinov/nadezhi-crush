@@ -120,7 +120,16 @@ export class GameScene {
     this.dimensions.cols = cols;
 
     while (this.boardBackgroundGroup.children.length > 0) {
-      this.boardBackgroundGroup.remove(this.boardBackgroundGroup.children[0]);
+      const child = this.boardBackgroundGroup.children[0];
+      this.boardBackgroundGroup.remove(child);
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => m.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
     }
 
     // Outer board frame
@@ -136,17 +145,23 @@ export class GameScene {
     frameMesh.position.set(0, 0, -0.05);
     this.boardBackgroundGroup.add(frameMesh);
 
-    // Individual tile backgrounds
+    // Individual tile backgrounds - shared geometries and materials
     const tileGeo = new THREE.PlaneGeometry(0.92, 0.92);
+    const tileMat1 = new THREE.MeshBasicMaterial({
+      color: 0x1e293b,
+      transparent: true,
+      opacity: 0.65,
+    });
+    const tileMat2 = new THREE.MeshBasicMaterial({
+      color: 0x0f172a,
+      transparent: true,
+      opacity: 0.65,
+    });
+
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const isAlternate = (r + c) % 2 === 0;
-        const tileMat = new THREE.MeshBasicMaterial({
-          color: isAlternate ? 0x1e293b : 0x0f172a,
-          transparent: true,
-          opacity: 0.65,
-        });
-        const tileMesh = new THREE.Mesh(tileGeo, tileMat);
+        const tileMesh = new THREE.Mesh(tileGeo, isAlternate ? tileMat1 : tileMat2);
         const worldPos = this.cellToWorld(r, c);
         tileMesh.position.set(worldPos.x, worldPos.y, -0.01);
         this.boardBackgroundGroup.add(tileMesh);
@@ -209,6 +224,20 @@ export class GameScene {
       cancelAnimationFrame(this.animationFrameId);
     }
     window.removeEventListener('resize', this.onResize);
+    this.onUpdateCallbacks = [];
+
+    // Traverse scene and dispose meshes, geometries, and materials
+    this.scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.geometry.dispose();
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach((m) => m.dispose());
+        } else {
+          obj.material.dispose();
+        }
+      }
+    });
+
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);

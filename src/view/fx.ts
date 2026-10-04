@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
+import confetti from 'canvas-confetti';
 import { Cell } from '../core/types';
 import { GameScene } from './scene';
+import { sound } from '../audio/sound';
 
 interface Particle {
   mesh: THREE.Mesh;
@@ -14,6 +16,11 @@ export class FXManager {
   private scene: GameScene;
   private selectionGroup: THREE.Group;
   private selectionAccent: THREE.Mesh;
+  private reticleMat: THREE.MeshBasicMaterial;
+  private horizGeo: THREE.PlaneGeometry;
+  private vertGeo: THREE.PlaneGeometry;
+  private accentGeo: THREE.RingGeometry;
+  private accentMat: THREE.MeshBasicMaterial;
   private hintGroup: THREE.Group;
   private activeParticles: Particle[] = [];
   private particleGeo: THREE.PlaneGeometry;
@@ -24,7 +31,7 @@ export class FXManager {
 
     // Arcade neon-cyan targeting reticle ([ ] corner brackets + rotating accent)
     this.selectionGroup = new THREE.Group();
-    const reticleMat = new THREE.MeshBasicMaterial({
+    this.reticleMat = new THREE.MeshBasicMaterial({
       color: 0x06b6d4, // Electric cyan
       side: THREE.DoubleSide,
       transparent: true,
@@ -36,8 +43,8 @@ export class FXManager {
     const thickness = 0.05;
     const offset = 0.44;
 
-    const horizGeo = new THREE.PlaneGeometry(armLength, thickness);
-    const vertGeo = new THREE.PlaneGeometry(thickness, armLength);
+    this.horizGeo = new THREE.PlaneGeometry(armLength, thickness);
+    this.vertGeo = new THREE.PlaneGeometry(thickness, armLength);
 
     // 4 Corner brackets
     const corners = [
@@ -48,25 +55,25 @@ export class FXManager {
     ];
 
     corners.forEach((c) => {
-      const hMesh = new THREE.Mesh(horizGeo, reticleMat);
+      const hMesh = new THREE.Mesh(this.horizGeo, this.reticleMat);
       hMesh.position.set(c.hx, c.y, 0);
       this.selectionGroup.add(hMesh);
 
-      const vMesh = new THREE.Mesh(vertGeo, reticleMat);
+      const vMesh = new THREE.Mesh(this.vertGeo, this.reticleMat);
       vMesh.position.set(c.x, c.vy, 0);
       this.selectionGroup.add(vMesh);
     });
 
     // Outer rotating corner accent diamond
-    const accentGeo = new THREE.RingGeometry(0.52, 0.54, 4);
-    const accentMat = new THREE.MeshBasicMaterial({
+    this.accentGeo = new THREE.RingGeometry(0.52, 0.54, 4);
+    this.accentMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       side: THREE.DoubleSide,
       transparent: true,
       blending: THREE.AdditiveBlending,
       opacity: 0.75,
     });
-    this.selectionAccent = new THREE.Mesh(accentGeo, accentMat);
+    this.selectionAccent = new THREE.Mesh(this.accentGeo, this.accentMat);
     this.selectionAccent.position.set(0, 0, 0);
     this.selectionGroup.add(this.selectionAccent);
 
@@ -128,7 +135,16 @@ export class FXManager {
   public clearHint() {
     gsap.killTweensOf(this.hintGroup.children.map((c) => c.scale));
     while (this.hintGroup.children.length > 0) {
-      this.hintGroup.remove(this.hintGroup.children[0]);
+      const child = this.hintGroup.children[0];
+      this.hintGroup.remove(child);
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => m.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
     }
   }
 
@@ -593,6 +609,142 @@ export class FXManager {
   }
 
   /**
+   * Cosmic Black Hole Singularity (Rainbow + Rainbow Fusion):
+   * Spawns an ethereal gravitational vortex at the fusion point, pulls all gems in a spiral
+   * into the event horizon, collapses into a pinprick, and detonates in a colossal supernova!
+   */
+  public spawnBlackHoleSingularity(center: THREE.Vector3, gemViews: any[]): Promise<void> {
+    return new Promise((resolve) => {
+      const group = new THREE.Group();
+      group.position.set(center.x, center.y, 0.45);
+      this.scene.fxGroup.add(group);
+
+      // 1. Accretion swirling spiral disk
+      const accretionGeo = new THREE.RingGeometry(0.35, 2.4, 48);
+      const accretionMat = new THREE.MeshBasicMaterial({
+        color: 0xc084fc, // Radiant cosmic purple/violet
+        side: THREE.DoubleSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.85,
+      });
+      const accretionMesh = new THREE.Mesh(accretionGeo, accretionMat);
+      group.add(accretionMesh);
+
+      // 2. Photon sphere ring (blinding white/cyan glow)
+      const photonGeo = new THREE.RingGeometry(0.28, 0.38, 48);
+      const photonMat = new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        side: THREE.DoubleSide,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 0.95,
+      });
+      const photonMesh = new THREE.Mesh(photonGeo, photonMat);
+      group.add(photonMesh);
+
+      // 3. Event horizon: deep pure black hole core
+      const coreGeo = new THREE.CircleGeometry(0.3, 32);
+      const coreMat = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        side: THREE.DoubleSide,
+      });
+      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      coreMesh.position.z = 0.02;
+      group.add(coreMesh);
+
+      // Initial emergence of singularity
+      group.scale.set(0.01, 0.01, 1);
+      gsap.to(group.scale, {
+        x: 1.2,
+        y: 1.2,
+        duration: 0.28,
+        ease: 'back.out(2)',
+      });
+
+      // Accelerating vortex spin
+      gsap.to(accretionMesh.rotation, {
+        z: Math.PI * 8,
+        duration: 1.4,
+        ease: 'power2.in',
+      });
+      gsap.to(photonMesh.rotation, {
+        z: -Math.PI * 6,
+        duration: 1.4,
+        ease: 'power2.in',
+      });
+
+      // Gravitational screen rumble
+      this.shake(2.4);
+
+      // Animate each gem spiraling into the vortex
+      const spiralTimeline = gsap.timeline({
+        onComplete: () => {
+          // Collapse singularity into a tiny dense point
+          gsap.to(group.scale, {
+            x: 0.05,
+            y: 0.05,
+            duration: 0.12,
+            ease: 'power3.in',
+            onComplete: () => {
+              // DETONATE SUPERNOVA!
+              sound.playSupernovaExplosion();
+              this.shake(6.0);
+              this.spawnShockwave(center, 12.0, 0.85);
+              this.spawnShockwave(center, 8.0, 0.55);
+              this.spawnBurst(center, 0xffffff, 45, 3.0);
+              this.spawnBurst(center, 0xec4899, 30, 2.4);
+              this.spawnFloatingScore(center, 10000, '#f43f5e');
+
+              if (group.parent) group.parent.remove(group);
+              accretionGeo.dispose();
+              accretionMat.dispose();
+              photonGeo.dispose();
+              photonMat.dispose();
+              coreGeo.dispose();
+              coreMat.dispose();
+              resolve();
+            },
+          });
+        },
+      });
+
+      gemViews.forEach((v) => {
+        if (!v || !v.group) return;
+        const initX = v.group.position.x;
+        const initY = v.group.position.y;
+        const dx = initX - center.x;
+        const dy = initY - center.y;
+        const r0 = Math.sqrt(dx * dx + dy * dy);
+        const theta0 = Math.atan2(dy, dx);
+        const delay = Math.min(0.2, r0 * 0.03);
+
+        const proxy = { progress: 0 };
+        spiralTimeline.to(
+          proxy,
+          {
+            progress: 1,
+            duration: 0.95,
+            ease: 'power2.in',
+            onUpdate: () => {
+              const p = proxy.progress;
+              const r = r0 * (1 - p);
+              // Accelerating angular spin as radius shrinks
+              const theta = theta0 + (2.5 + (1 - p) * 2.0) * Math.PI * p;
+              v.group.position.x = center.x + Math.cos(theta) * r;
+              v.group.position.y = center.y + Math.sin(theta) * r;
+              const s = Math.max(0, 1 - p * p);
+              v.group.scale.set(s, s, 1);
+              v.group.rotation.z += 0.25;
+            },
+          },
+          delay
+        );
+      });
+    });
+  }
+
+  /**
    * Spawns a cartoon squash-and-stretch "POP!" comic burst with starburst flash and confetti dots.
    */
   public spawnCartoonPop(pos: THREE.Vector3, colorHex: number) {
@@ -845,6 +997,49 @@ export class FXManager {
   }
 
   /**
+   * Displays a banner informing the player that the board has no valid moves and is reshuffling
+   */
+  public showShuffleBanner() {
+    const container = document.getElementById('combo-banner-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const banner = document.createElement('div');
+    banner.className = 'combo-banner tier-1';
+    banner.innerHTML = `
+      <div class="combo-banner-cascade">🔄 SIN MOVIMIENTOS 🔄</div>
+      <div class="combo-banner-title">¡BARAJANDO!</div>
+      <div class="combo-banner-points">Nuevas oportunidades</div>
+    `;
+
+    container.appendChild(banner);
+
+    gsap.fromTo(
+      banner,
+      { scale: 1.8, opacity: 0 },
+      {
+        scale: 1,
+        opacity: 1,
+        duration: 0.22,
+        ease: 'back.out(1.8)',
+        onComplete: () => {
+          gsap.to(banner, {
+            y: -25,
+            opacity: 0,
+            duration: 0.4,
+            delay: 0.5,
+            ease: 'power2.in',
+            onComplete: () => {
+              if (banner.parentElement) banner.parentElement.removeChild(banner);
+            },
+          });
+        },
+      }
+    );
+  }
+
+  /**
    * Displays an arcade Killer Instinct-style Combo Banner overlay
    */
   public showComboBanner(cascade: number, title: string, tier: number, points: number) {
@@ -901,6 +1096,71 @@ export class FXManager {
     );
   }
 
+  /**
+   * Displays an epic Board Clear banner with confetti, screen shake, and random phrase
+   */
+  public showBoardClearBanner(title: string, points: number) {
+    const container = document.getElementById('combo-banner-container');
+    if (!container) return;
+
+    // Clear previous banner if any
+    container.innerHTML = '';
+
+    const banner = document.createElement('div');
+    banner.className = 'combo-banner tier-board-clear';
+    banner.innerHTML = `
+      <div class="combo-banner-cascade">✨ ¡TABLERO LIMPIO! ✨</div>
+      <div class="combo-banner-title">${title}</div>
+      <div class="combo-banner-points">+${points.toLocaleString()} PTS BONUS</div>
+    `;
+
+    container.appendChild(banner);
+
+    // Dramatic screen shake
+    this.shake(4.5);
+
+    // Confetti celebration
+    confetti({
+      particleCount: 120,
+      spread: 90,
+      origin: { y: 0.5 },
+      colors: ['#facc15', '#ec4899', '#38bdf8', '#a855f7', '#4ade80'],
+    });
+
+    // GSAP animation: dramatic slam zoom, golden pulse, slide up and fade
+    gsap.fromTo(
+      banner,
+      { scale: 2.8, opacity: 0, rotation: -8 },
+      {
+        scale: 1,
+        opacity: 1,
+        rotation: 0,
+        duration: 0.28,
+        ease: 'back.out(2.2)',
+        onComplete: () => {
+          gsap.to(banner, {
+            scale: 1.08,
+            duration: 0.45,
+            yoyo: true,
+            repeat: 2,
+            ease: 'sine.inOut',
+            onComplete: () => {
+              gsap.to(banner, {
+                y: -40,
+                opacity: 0,
+                duration: 0.35,
+                ease: 'power2.in',
+                onComplete: () => {
+                  if (banner.parentElement) banner.parentElement.removeChild(banner);
+                },
+              });
+            },
+          });
+        },
+      }
+    );
+  }
+
   private update(dt: number, time: number) {
     // Pulse selection indicator
     if (this.selectionGroup.visible) {
@@ -915,6 +1175,11 @@ export class FXManager {
       p.life += dt;
       if (p.life >= p.maxLife) {
         if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+        if (Array.isArray(p.mesh.material)) {
+          p.mesh.material.forEach((m) => m.dispose());
+        } else {
+          p.mesh.material.dispose();
+        }
         this.activeParticles.splice(i, 1);
         continue;
       }
@@ -934,7 +1199,22 @@ export class FXManager {
     this.showSelection(null);
     for (const p of this.activeParticles) {
       if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+      if (Array.isArray(p.mesh.material)) {
+        p.mesh.material.forEach((m) => m.dispose());
+      } else {
+        p.mesh.material.dispose();
+      }
     }
     this.activeParticles = [];
+  }
+
+  public destroy() {
+    this.clearAll();
+    this.particleGeo.dispose();
+    this.reticleMat.dispose();
+    this.horizGeo.dispose();
+    this.vertGeo.dispose();
+    this.accentGeo.dispose();
+    this.accentMat.dispose();
   }
 }

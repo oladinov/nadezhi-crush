@@ -27,6 +27,8 @@ class SoundManager {
 
   private masterGainNode: GainNode | null = null;
   private sfxGainNode: GainNode | null = null;
+  private compressorNode: DynamicsCompressorNode | null = null;
+  private hasUserInteracted: boolean = false;
 
   // Real acoustic fantasy BGM audio element
   private bgmAudio: HTMLAudioElement | null = null;
@@ -34,8 +36,24 @@ class SoundManager {
   private currentTrackIndex: number = 0;
 
   constructor() {
+    this.loadSettings();
     this.initAudioElement();
     this.setupLifecycleListeners();
+  }
+
+  private loadSettings() {
+    try {
+      const mVol = localStorage.getItem('nadezhi_master_vol');
+      if (mVol !== null) this.masterVolume = parseFloat(mVol) || 0.7;
+      const sVol = localStorage.getItem('nadezhi_sfx_vol');
+      if (sVol !== null) this.sfxVolume = parseFloat(sVol) || 0.8;
+      const bVol = localStorage.getItem('nadezhi_bgm_vol');
+      if (bVol !== null) this.bgmVolume = parseFloat(bVol) || 0.55;
+      const muted = localStorage.getItem('nadezhi_muted');
+      if (muted !== null) this.isMuted = muted === 'true';
+      const bgmMuted = localStorage.getItem('nadezhi_bgm_muted');
+      if (bgmMuted !== null) this.isBgmMuted = bgmMuted === 'true';
+    } catch {}
   }
 
   public get currentTrack(): MusicTrack {
@@ -75,7 +93,14 @@ class SoundManager {
   private setupLifecycleListeners() {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
+        if (document.hidden) {
+          if (this.bgmAudio && !this.bgmAudio.paused) {
+            this.bgmAudio.pause();
+          }
+          if (this.ctx && this.ctx.state === 'running') {
+            this.ctx.suspend().catch(() => {});
+          }
+        } else {
           this.resumeAudioContextAndBgm();
         }
       });
@@ -129,9 +154,18 @@ class SoundManager {
       if (AudioCtx) {
         this.ctx = new AudioCtx();
 
+        // Dynamics compressor to prevent digital clipping when many audio nodes fire simultaneously
+        this.compressorNode = this.ctx.createDynamicsCompressor();
+        this.compressorNode.threshold.setValueAtTime(-12, this.ctx.currentTime);
+        this.compressorNode.knee.setValueAtTime(30, this.ctx.currentTime);
+        this.compressorNode.ratio.setValueAtTime(12, this.ctx.currentTime);
+        this.compressorNode.attack.setValueAtTime(0.003, this.ctx.currentTime);
+        this.compressorNode.release.setValueAtTime(0.25, this.ctx.currentTime);
+        this.compressorNode.connect(this.ctx.destination);
+
         this.masterGainNode = this.ctx.createGain();
         this.masterGainNode.gain.setValueAtTime(this.isMuted ? 0 : this.masterVolume, this.ctx.currentTime);
-        this.masterGainNode.connect(this.ctx.destination);
+        this.masterGainNode.connect(this.compressorNode);
 
         this.sfxGainNode = this.ctx.createGain();
         this.sfxGainNode.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
@@ -141,6 +175,17 @@ class SoundManager {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
+  }
+
+  private autoCleanup(source: AudioScheduledSourceNode, ...extraNodes: (AudioNode | null | undefined)[]) {
+    source.onended = () => {
+      try {
+        source.disconnect();
+        for (const node of extraNodes) {
+          node?.disconnect();
+        }
+      } catch {}
+    };
   }
 
   private updateBgmVolume() {
@@ -156,6 +201,21 @@ class SoundManager {
       this.masterGainNode.gain.setTargetAtTime(this.masterVolume, this.ctx.currentTime, 0.05);
     }
     this.updateBgmVolume();
+    try { localStorage.setItem('nadezhi_master_vol', String(this.masterVolume)); } catch {}
+  }
+
+  public setSfxVolume(val: number) {
+    this.sfxVolume = Math.max(0, Math.min(1, val));
+    if (this.sfxGainNode && this.ctx) {
+      this.sfxGainNode.gain.setTargetAtTime(this.sfxVolume, this.ctx.currentTime, 0.05);
+    }
+    try { localStorage.setItem('nadezhi_sfx_vol', String(this.sfxVolume)); } catch {}
+  }
+
+  public setBgmVolume(val: number) {
+    this.bgmVolume = Math.max(0, Math.min(1, val));
+    this.updateBgmVolume();
+    try { localStorage.setItem('nadezhi_bgm_vol', String(this.bgmVolume)); } catch {}
   }
 
   public setMuted(muted: boolean) {
@@ -164,6 +224,7 @@ class SoundManager {
       this.masterGainNode.gain.setTargetAtTime(this.isMuted ? 0 : this.masterVolume, this.ctx.currentTime, 0.05);
     }
     this.updateBgmVolume();
+    try { localStorage.setItem('nadezhi_muted', String(this.isMuted)); } catch {}
   }
 
   public toggleMute(): boolean {
@@ -183,6 +244,7 @@ class SoundManager {
         this.bgmAudio.play().catch(() => {});
       }
     }
+    try { localStorage.setItem('nadezhi_bgm_muted', String(this.isBgmMuted)); } catch {}
   }
 
   public toggleBgmMute(): boolean {
@@ -191,6 +253,7 @@ class SoundManager {
   }
 
   public userGesture() {
+    this.hasUserInteracted = true;
     this.initCtx();
     if (!this.isBgmPlaying && this.bgmAudio) {
       this.startBGM();
@@ -244,6 +307,7 @@ class SoundManager {
 
     osc.start(now);
     osc.stop(now + 0.08);
+    this.autoCleanup(osc, gain);
   }
 
   public playInvalidSwap() {
@@ -266,6 +330,7 @@ class SoundManager {
 
     osc.start(now);
     osc.stop(now + 0.15);
+    this.autoCleanup(osc, gain);
   }
 
   public playMatch(cascade: number = 1) {
@@ -292,6 +357,7 @@ class SoundManager {
 
     osc.start(now);
     osc.stop(now + 0.18);
+    this.autoCleanup(osc, gain);
   }
 
   /**
@@ -324,6 +390,7 @@ class SoundManager {
 
     osc.start(now);
     osc.stop(now + 0.24);
+    this.autoCleanup(osc, filter, gain);
   }
 
   public playBombExplosion(tier: 1 | 2 = 1) {
@@ -358,6 +425,7 @@ class SoundManager {
 
     noise.start(now);
     noise.stop(now + dur);
+    this.autoCleanup(noise, filter, gain);
 
     // Sub-bass impact
     const sub = this.ctx.createOscillator();
@@ -374,6 +442,7 @@ class SoundManager {
 
     sub.start(now);
     sub.stop(now + dur);
+    this.autoCleanup(sub, subGain);
   }
 
   public playChainSpark() {
@@ -391,6 +460,7 @@ class SoundManager {
     gain.connect(this.sfxGainNode);
     osc.start(now);
     osc.stop(now + 0.1);
+    this.autoCleanup(osc, gain);
   }
 
   public playRainbowBeam() {
@@ -417,6 +487,7 @@ class SoundManager {
 
       osc.start(time);
       osc.stop(time + 0.22);
+      this.autoCleanup(osc, gain);
     });
   }
 
@@ -440,9 +511,11 @@ class SoundManager {
 
     osc.start(now);
     osc.stop(now + 0.15);
+    this.autoCleanup(osc, gain);
   }
 
   public playBoardFill() {
+    if (!this.hasUserInteracted) return;
     this.userGesture();
     if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
 
@@ -466,6 +539,7 @@ class SoundManager {
 
       osc.start(time);
       osc.stop(time + 0.18);
+      this.autoCleanup(osc, gain);
     });
   }
 
@@ -492,6 +566,7 @@ class SoundManager {
 
       osc.start(time);
       osc.stop(time + 0.4);
+      this.autoCleanup(osc, gain);
     });
   }
 
@@ -518,6 +593,7 @@ class SoundManager {
 
       osc.start(time);
       osc.stop(time + 0.22);
+      this.autoCleanup(osc, gain);
     });
   }
 
@@ -547,6 +623,7 @@ class SoundManager {
 
     osc.start(now);
     osc.stop(now + 0.09);
+    this.autoCleanup(osc, gain);
 
     // Punchy snap click
     const clickOsc = this.ctx.createOscillator();
@@ -560,6 +637,7 @@ class SoundManager {
     clickGain.connect(this.sfxGainNode);
     clickOsc.start(now);
     clickOsc.stop(now + 0.025);
+    this.autoCleanup(clickOsc, clickGain);
   }
 
   /**
@@ -583,6 +661,7 @@ class SoundManager {
     subGain.connect(this.sfxGainNode);
     subOsc.start(now);
     subOsc.stop(now + 0.55);
+    this.autoCleanup(subOsc, subGain);
 
     // 2. High-energy laser/flame rushing whoosh
     const laserOsc = this.ctx.createOscillator();
@@ -596,6 +675,7 @@ class SoundManager {
     laserGain.connect(this.sfxGainNode);
     laserOsc.start(now);
     laserOsc.stop(now + 0.45);
+    this.autoCleanup(laserOsc, laserGain);
   }
 
   /**
@@ -643,6 +723,186 @@ class SoundManager {
 
       osc.start(time);
       osc.stop(time + 0.35);
+      this.autoCleanup(osc, gain);
+    });
+  }
+
+  /**
+   * Deep cosmic gravitational vortex hum with accelerating frequency and warble.
+   */
+  public playBlackHoleHum() {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+
+    const now = this.ctx.currentTime;
+    const duration = 1.6;
+
+    // Sub-bass rumble
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = 'sawtooth';
+    subOsc.frequency.setValueAtTime(45, now);
+    subOsc.frequency.exponentialRampToValueAtTime(140, now + duration);
+
+    // Low-pass filter for dark gravitational feel
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(120, now);
+    filter.frequency.exponentialRampToValueAtTime(600, now + duration);
+    filter.Q.setValueAtTime(6, now);
+
+    subGain.gain.setValueAtTime(0.05, now);
+    subGain.gain.linearRampToValueAtTime(0.4, now + duration * 0.8);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    subOsc.connect(filter);
+    filter.connect(subGain);
+    subGain.connect(this.sfxGainNode);
+
+    subOsc.start(now);
+    subOsc.stop(now + duration);
+    this.autoCleanup(subOsc, filter, subGain);
+
+    // Ethereal choir-like high shimmer vortex
+    const choirOsc = this.ctx.createOscillator();
+    const choirGain = this.ctx.createGain();
+    choirOsc.type = 'sine';
+    choirOsc.frequency.setValueAtTime(440, now);
+    choirOsc.frequency.exponentialRampToValueAtTime(1320, now + duration);
+
+    choirGain.gain.setValueAtTime(0.01, now);
+    choirGain.gain.linearRampToValueAtTime(0.2, now + duration * 0.85);
+    choirGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    choirOsc.connect(choirGain);
+    choirGain.connect(this.sfxGainNode);
+
+    choirOsc.start(now);
+    choirOsc.stop(now + duration);
+    this.autoCleanup(choirOsc, choirGain);
+  }
+
+  /**
+   * Colossal supernova explosion that shatters the singularity.
+   */
+  public playSupernovaExplosion() {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+
+    const now = this.ctx.currentTime;
+
+    // 1. Deep seismic boom
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = 'triangle';
+    subOsc.frequency.setValueAtTime(120, now);
+    subOsc.frequency.exponentialRampToValueAtTime(25, now + 0.9);
+
+    subGain.gain.setValueAtTime(0.65, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+
+    subOsc.connect(subGain);
+    subGain.connect(this.sfxGainNode);
+    subOsc.start(now);
+    subOsc.stop(now + 0.95);
+    this.autoCleanup(subOsc, subGain);
+
+    // 2. Cosmic noise blast with bandpass sweep
+    const bufferSize = this.ctx.sampleRate * 1.2;
+    const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+
+    const whiteNoise = this.ctx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1600, now);
+    filter.frequency.exponentialRampToValueAtTime(80, now + 1.2);
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.5, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+    whiteNoise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.sfxGainNode);
+
+    whiteNoise.start(now);
+    whiteNoise.stop(now + 1.2);
+    this.autoCleanup(whiteNoise, filter, noiseGain);
+
+    // 3. Crystalline celestial chime bell
+    const bellOsc = this.ctx.createOscillator();
+    const bellGain = this.ctx.createGain();
+    bellOsc.type = 'sine';
+    bellOsc.frequency.setValueAtTime(1760, now + 0.05); // A6 chime
+    bellGain.gain.setValueAtTime(0.3, now + 0.05);
+    bellGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+
+    bellOsc.connect(bellGain);
+    bellGain.connect(this.sfxGainNode);
+    bellOsc.start(now + 0.05);
+    bellOsc.stop(now + 1.1);
+    this.autoCleanup(bellOsc, bellGain);
+  }
+
+  /**
+   * Royal celebratory fanfare for Board Clear (Tablero Limpio).
+   * Ascending orchestral brass arpeggio (C5, E5, G5, C6, E6, G6, C7)
+   * followed by crystalline celestial bells and shimmering chord.
+   */
+  public playBoardClearFanfare() {
+    this.userGesture();
+    if (this.isMuted || !this.ctx || !this.sfxGainNode) return;
+
+    const now = this.ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98, 2093.0];
+
+    // Ascending brass fanfares
+    notes.forEach((freq, idx) => {
+      if (!this.ctx || !this.sfxGainNode) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const time = now + idx * 0.055;
+
+      osc.type = idx >= 4 ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.28, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.45);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGainNode);
+
+      osc.start(time);
+      osc.stop(time + 0.45);
+      this.autoCleanup(osc, gain);
+    });
+
+    // Sustained celestial chord at the climax
+    const chordNotes = [1046.5, 1318.51, 1567.98, 2093.0];
+    chordNotes.forEach((freq) => {
+      if (!this.ctx || !this.sfxGainNode) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const time = now + 0.42;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.18, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.85);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGainNode);
+
+      osc.start(time);
+      osc.stop(time + 0.85);
+      this.autoCleanup(osc, gain);
     });
   }
 }

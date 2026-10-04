@@ -2,8 +2,19 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Nadezhi Match-3 • Tierras de Fantasía</title>
+
+  <!-- PWA & Mobile Web App Meta -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="theme-color" content="#0b0f19" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Nadezhi" />
+
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body>
@@ -52,6 +63,9 @@
         <!-- RESTART LEVEL -->
         <button id="btn-restart" class="btn-icon" title="Reiniciar Nivel">🔄</button>
 
+        <!-- HIGH SCORES & LEADERBOARD -->
+        <button id="btn-leaderboard" class="btn-icon" title="Récords y Salón de la Fama" aria-label="Récords y Salón de la Fama">🏆</button>
+
         <!-- HELP & ABOUT -->
         <button id="btn-help" class="btn-icon" title="Guía y Créditos">❓</button>
       </div>
@@ -66,6 +80,33 @@
       <span id="toast-text">Música: Fiesta en la Comarca</span>
     </div>
 
+    <!-- PWA INSTALL PROMPT BANNER (ADD TO HOME SCREEN) -->
+    <div id="pwa-install-banner" class="pwa-install-banner" style="display: none;">
+      <div class="pwa-install-card">
+        <button id="btn-pwa-dismiss" class="pwa-close-btn" title="Cerrar">✕</button>
+        <div class="pwa-card-body">
+          <img src="/apple-touch-icon.png" class="pwa-app-icon" alt="Nadezhi Icon" />
+          <div class="pwa-text-container">
+            <div class="pwa-title">📱 ¡Juega como App!</div>
+            <div class="pwa-desc" id="pwa-desc-text">
+              Agrega Nadezhi a tu pantalla principal para jugar a pantalla completa y sin barras del navegador.
+            </div>
+            <div id="pwa-ios-instructions" class="pwa-ios-instructions" style="display: none;">
+              Toca el botón <strong>Compartir ⎋</strong> en Safari y luego <strong>"Agregar a pantalla de inicio ➕"</strong>.
+            </div>
+          </div>
+        </div>
+        <div class="pwa-actions">
+          <button id="btn-pwa-install" class="btn-primary pwa-btn-action">
+            📲 Agregar a pantalla principal
+          </button>
+          <button id="btn-pwa-later" class="btn-pill btn-secondary pwa-btn-dismiss">
+            Ahora no
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- GOALS CONTAINER -->
     <div id="ui-goals" class="goals-container">
       <!-- Injected via TypeScript -->
@@ -74,18 +115,21 @@
     <!-- THREE.JS CANVAS CONTAINER -->
     <div id="game-canvas"></div>
 
-    <!-- BOTTOM BAR (CLEAN NAVIGATION) -->
-    <div class="bottom-bar">
-      <button id="btn-prev-level" class="btn-pill btn-secondary">◀ Anterior</button>
-      <button id="btn-next-level" class="btn-pill">Siguiente ▶</button>
-    </div>
-
     <!-- WIN MODAL -->
     <div id="modal-win" class="modal-overlay">
       <div class="modal-card">
         <div style="font-size: 3.5rem; margin-bottom: 8px;">🎉</div>
         <h2 class="modal-title win">¡Nivel Completado!</h2>
         <p style="color: #94a3b8;">¡Excelente jugada! Todas las metas han sido superadas.</p>
+
+        <!-- STARS RATING (1, 2, or 3 STARS) -->
+        <div id="modal-win-stars" class="modal-win-stars-container">
+          <!-- Populated dynamically via TypeScript -->
+        </div>
+
+        <!-- NEW RECORD / TOP 10 BADGE -->
+        <div id="modal-win-record-badge" class="win-record-badge" style="display: none;"></div>
+
         <div class="modal-score-box">
           <div class="modal-score-label">Puntuación Final</div>
           <div id="modal-win-score" class="modal-score-val">0</div>
@@ -124,6 +168,71 @@
         <div id="level-select-container" class="level-groups-container"></div>
         <div class="modal-actions" style="margin-top: 10px;">
           <button id="btn-close-level-select" class="btn-pill btn-secondary" style="padding: 10px 24px;">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HIGH SCORES & LEADERBOARD MODAL -->
+    <div id="modal-leaderboard" class="modal-overlay">
+      <div class="modal-card modal-leaderboard-card">
+        <div class="modal-leaderboard-header">
+          <div class="modal-leaderboard-title">
+            <span style="font-size: 1.8rem;">🏆</span>
+            <div>
+              <h2 id="leaderboard-modal-title" style="color: #ffffff; font-size: 1.35rem; font-weight: 900; line-height: 1.2; text-align: left;">Salón de la Fama & Récords</h2>
+              <span id="leaderboard-modal-subtitle" style="color: #94a3b8; font-size: 0.78rem; text-align: left; display: block;">Compite por la gloria eterna en las tierras de Nadezhi</span>
+            </div>
+          </div>
+          <button id="btn-close-leaderboard" class="modal-close-icon-btn" title="Cerrar">✕</button>
+        </div>
+
+        <!-- PLAYER NICKNAME BAR -->
+        <div id="player-profile-bar" class="player-profile-bar">
+          <span class="player-profile-label">Tu Nombre:</span>
+          <div class="player-profile-input-wrap">
+            <input type="text" id="input-player-name" class="player-name-input" maxlength="20" placeholder="Aventurero" value="Aventurero" />
+            <button id="btn-save-player-name" class="btn-save-name" title="Guardar nombre">Guardar</button>
+          </div>
+        </div>
+
+        <!-- TABS -->
+        <div id="leaderboard-tabs" class="leaderboard-tabs">
+          <button id="tab-btn-hof" class="leaderboard-tab-btn active">👑 Top 10 Salón de la Fama</button>
+          <button id="tab-btn-levels" class="leaderboard-tab-btn">⭐ Récords por Nivel</button>
+        </div>
+
+        <!-- TAB CONTENT 1: HALL OF FAME -->
+        <div id="tab-content-hof" class="leaderboard-tab-panel active">
+          <div id="hof-list-container" class="hof-list-container">
+            <!-- Injected via TypeScript -->
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: LEVEL RECORDS -->
+        <div id="tab-content-levels" class="leaderboard-tab-panel" style="display: none;">
+          <div id="level-records-container" class="level-records-container">
+            <!-- Injected via TypeScript -->
+          </div>
+        </div>
+
+        <!-- FOOTER STATS -->
+        <div class="leaderboard-footer-stats">
+          <div class="leaderboard-stat-item">
+            <span class="stat-label">Puntos Totales</span>
+            <strong id="stat-total-score" class="stat-value">0</strong>
+          </div>
+          <div class="leaderboard-stat-item">
+            <span class="stat-label">3 Estrellas ⭐</span>
+            <strong id="stat-three-stars" class="stat-value gold">0</strong>
+          </div>
+          <div class="leaderboard-stat-item">
+            <span class="stat-label">Récord Máximo</span>
+            <strong id="stat-best-score" class="stat-value cyan">0</strong>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 14px;">
+          <button id="btn-close-leaderboard-footer" class="btn-pill btn-secondary" style="padding: 10px 32px;">Cerrar</button>
         </div>
       </div>
     </div>
@@ -189,7 +298,7 @@
                 <div class="help-item-icon">🌈+🌈</div>
                 <div class="help-item-info">
                   <strong>Arcoíris + Arcoíris</strong>
-                  <span>Onda cósmica: ¡Limpia el tablero completo en ondas de choque!</span>
+                  <span>¡Vórtice Cósmico! Crea un hoyo negro gravitacional que devora todo el tablero y detona en supernova con +10,000 pts.</span>
                 </div>
               </div>
             </div>
@@ -225,14 +334,25 @@
             </div>
           </div>
 
-          <!-- SECTION 4: CRÉDITOS Y LICENCIAS -->
+          <!-- SECTION 4: APP MÓVIL / PANTALLA COMPLETA -->
+          <div class="help-section">
+            <h3 class="help-heading">📱 Juega en Pantalla Completa</h3>
+            <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4; margin-bottom: 8px;">
+              Instala Nadezhi directamente en tu pantalla de inicio en Android o iPhone para jugar a pantalla completa y sin barras del navegador.
+            </p>
+            <button id="btn-help-install-pwa" class="btn-primary" style="padding: 8px 18px; font-size: 0.85rem; cursor: pointer;">
+              📲 Agregar a pantalla principal
+            </button>
+          </div>
+
+          <!-- SECTION 5: CRÉDITOS Y LICENCIAS -->
           <div class="help-section">
             <h3 class="help-heading">📜 Créditos y Licencias</h3>
             <div class="help-credits-text">
               <p>🎵 <strong>Música de fantasía:</strong> Compuesta por <em>Kevin MacLeod</em> (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>) bajo licencia Creative Commons: By Attribution 4.0 (CC BY 4.0).</p>
               <p>Pistas incluidas: <em>Folk Round, Minstrel Guild, Celtic Impulse, Village Consort</em>.</p>
               <p style="margin-top: 8px;">🎮 <strong>Desarrollado por:</strong> <strong style="color: #facc15; font-size: 0.9rem;">Dûrgrimst Az Ladinû</strong></p>
-              <p style="margin-top: 4px; font-size: 0.75rem; color: #64748b;">Versión v1.2.0 · Three.js, Vite, TypeScript y GSAP.</p>
+              <p style="margin-top: 4px; font-size: 0.75rem; color: #64748b;">Versión v1.3.0 · Three.js, Vite, TypeScript y GSAP.</p>
             </div>
           </div>
         </div>

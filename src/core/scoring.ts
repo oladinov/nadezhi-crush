@@ -12,8 +12,30 @@ export const SPECIAL_POINTS = {
   rainbowSimple: 500,
   bombBombFusion: 600,
   rainbowBombFusion: 1000,
-  rainbowRainbowFusion: 2500,
+  rainbowRainbowFusion: 10000,
+  boardClear: 5000,
 } as const;
+
+export const BOARD_CLEAR_EXCLAMATIONS = [
+  '¡IMPRESIONANTE!',
+  '¡EXCELSIOR!',
+  '¡WOOOOOOOW!',
+  '¡APOTEÓSICO!',
+  '¡SUBLIME!',
+  '¡MAGISTRAL!',
+  '¡LIMPIEZA TOTAL!',
+  '¡PERFECCIÓN ABSOLUTA!',
+  '¡ASOMBROSO!',
+  '¡ÉPICO!',
+  '¡LEGENDARIO!',
+  '¡SENSACIONAL!',
+];
+
+export function getRandomBoardClearExclamation(rng?: { next: () => number }): string {
+  const rand = rng ? rng.next() : Math.random();
+  const idx = Math.floor(rand * BOARD_CLEAR_EXCLAMATIONS.length);
+  return BOARD_CLEAR_EXCLAMATIONS[Math.min(idx, BOARD_CLEAR_EXCLAMATIONS.length - 1)];
+}
 
 export interface ComboRating {
   tier: number;

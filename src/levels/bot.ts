@@ -1,5 +1,6 @@
 import { CoreEngine } from '../core/resolver';
 import { Board, Cell, LevelConfig } from '../core/types';
+import { cloneBoard } from '../core/board';
 
 export interface BotSimulationOptions {
   seed: number;
@@ -15,6 +16,8 @@ export interface BotSimulationResult {
   movesLeft: number;
 }
 
+const botCache = new Map<string, BotSimulationResult>();
+
 /**
  * Deterministic greedy bot.
  * At each turn, evaluates all valid moves and executes the one with the highest immediate points gained.
@@ -26,9 +29,16 @@ export function simulateGreedy(opts: BotSimulationOptions): BotSimulationResult 
   const colors = opts.colors ?? 5;
   const totalMoves = opts.moves;
 
+  const cacheKey = `${opts.seed}:${totalMoves}:${colors}:${rows}:${cols}`;
+  const cached = botCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const config: LevelConfig = {
     level: 99999,
     seed: opts.seed,
+    seedKey: opts.seed,
     rows,
     cols,
     colors,
@@ -51,12 +61,13 @@ export function simulateGreedy(opts: BotSimulationOptions): BotSimulationResult 
       const simConfig: LevelConfig = {
         level: 99999,
         seed: opts.seed,
+        seedKey: opts.seed,
         rows,
         cols,
         colors,
         moves: engine.movesLeft,
         goals: [{ type: 'score', target: 10000000 }],
-        boardOverride: engine.snapshot as unknown as Board,
+        boardOverride: cloneBoard(engine.snapshot as Board),
       };
       const simEngine = new CoreEngine(simConfig);
       // Copy exact RNG state for accurate lookahead
@@ -84,9 +95,11 @@ export function simulateGreedy(opts: BotSimulationOptions): BotSimulationResult 
     movesPlayed++;
   }
 
-  return {
+  const result: BotSimulationResult = {
     score: engine.progress.score,
     movesPlayed,
     movesLeft: engine.movesLeft,
   };
+  botCache.set(cacheKey, result);
+  return result;
 }

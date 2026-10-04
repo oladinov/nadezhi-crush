@@ -5,7 +5,7 @@ import { simulateGreedy } from '../src/levels/bot';
 import { CoreEngine } from '../src/core/resolver';
 import { findValidMoves } from '../src/core/moves';
 import { evaluateMatches } from '../src/core/patterns';
-import { hashString } from '../src/core/rng';
+import { Cell } from '../src/core/types';
 import { getLevelBiome } from '../src/game';
 
 describe('Curated Levels', () => {
@@ -29,11 +29,11 @@ describe('Curated Levels', () => {
   it('ensures level 9 has balanced initial board without instant 5-in-a-row', () => {
     const cfg = getLevelConfig(9);
     const engine = new CoreEngine(cfg);
-    const moves = findValidMoves(engine.board);
+    const moves = findValidMoves(engine.getBoard());
     expect(moves.length).toBeGreaterThan(15);
     // Verify no 5-match on move 1
-    moves.forEach((m: any) => {
-      const copy = JSON.parse(JSON.stringify(engine.board));
+    moves.forEach((m: { a: Cell; b: Cell }) => {
+      const copy = JSON.parse(JSON.stringify(engine.getBoard()));
       const gemA = copy[m.a.r][m.a.c];
       const gemB = copy[m.b.r][m.b.c];
       copy[m.a.r][m.a.c] = gemB;
@@ -64,14 +64,39 @@ describe('Bot Simulation and Infinite Generator', () => {
     expect(lvl50.moves).toBeLessThanOrEqual(21);
   });
 
-  it('assigns Tierras Infinitas biome to levels >= 21', () => {
+  it('assigns fantasy biomes correctly up to Tierras Infinitas', () => {
     const biome20 = getLevelBiome(20);
     expect(biome20.name).toBe('Monte del Destino');
     expect(biome20.image).toBe('/fantasy_volcano.jpg');
 
     const biome21 = getLevelBiome(21);
-    expect(biome21.name).toBe('Tierras Infinitas');
-    expect(biome21.icon).toBe('♾️');
-    expect(biome21.image).toBe('/fantasy_infinite.jpg');
+    expect(biome21.name).toBe('Erebor');
+    expect(biome21.icon).toBe('⛏️');
+    expect(biome21.image).toBe('/fantasy_erebor.jpg');
+
+    const biome25 = getLevelBiome(25);
+    expect(biome25.name).toBe('Númenórë');
+    expect(biome25.icon).toBe('⚓');
+    expect(biome25.image).toBe('/fantasy_numenor.jpg');
+
+    const biome29 = getLevelBiome(29);
+    expect(biome29.name).toBe('Pixie Hollow');
+    expect(biome29.icon).toBe('🧚');
+    expect(biome29.image).toBe('/fantasy_pixie.jpg');
+
+    const biome33 = getLevelBiome(33);
+    expect(biome33.name).toBe('Nunca Jamás');
+    expect(biome33.icon).toBe('🏴‍☠️');
+    expect(biome33.image).toBe('/fantasy_neverland.jpg');
+
+    const biome37 = getLevelBiome(37);
+    expect(biome37.name).toBe('Monte Vesubio');
+    expect(biome37.icon).toBe('🔮');
+    expect(biome37.image).toBe('/fantasy_vesubio.jpg');
+
+    const biome41 = getLevelBiome(41);
+    expect(biome41.name).toBe('Tierras Infinitas');
+    expect(biome41.icon).toBe('♾️');
+    expect(biome41.image).toBe('/fantasy_infinite.jpg');
   });
 });

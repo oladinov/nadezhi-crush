@@ -28,7 +28,7 @@ import {
   getMostAbundantColor,
   manhattanDistance,
 } from './specials';
-import { getComboRating, getGemClearPoints, SPECIAL_POINTS } from './scoring';
+import { getComboRating, getGemClearPoints, getRandomBoardClearExclamation, SPECIAL_POINTS } from './scoring';
 import {
   cloneGoalProgress,
   createInitialGoalProgress,
@@ -374,12 +374,18 @@ export class CoreEngine implements GridCore {
                 id: gem.id,
                 kind: 'bomb',
                 color: gem.color,
-                tier: 1,
+                tier: fusion.bombTier,
               };
               this.board[r][c] = newBomb;
               toTransformCells.push(cell);
               transformedGems.push(newBomb);
               bombsToDetonate.push({ cell, gem: newBomb, dist });
+
+              if (fusion.bombTier === 2) {
+                this.progress.created.bomb2++;
+              } else {
+                this.progress.created.bomb1++;
+              }
             } else {
               // Existing bomb retains tier
               bombsToDetonate.push({ cell, gem, dist });
@@ -432,7 +438,7 @@ export class CoreEngine implements GridCore {
       this.processActivationQueue(queue, activatedIds, toClearMap, steps);
       this.commitClears(toClearMap, 'fusion', cascade, steps);
     } else if (fusion.type === 'rainbow_rainbow') {
-      // Rainbow + Rainbow: Full board wipe in concentric waves from b
+      // Rainbow + Rainbow: Cosmic Black Hole Singularity! Full board wipe
       const center = b;
       const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
 
@@ -446,7 +452,7 @@ export class CoreEngine implements GridCore {
               cell: { r, c },
               gem,
               wave,
-              bonusPoints: isCenter ? SPECIAL_POINTS.rainbowRainbowFusion : undefined,
+              bonusPoints: isCenter ? SPECIAL_POINTS.rainbowRainbowFusion : 150,
             });
             if (gem.kind === 'bomb') {
               this.progress.detonated++;
@@ -455,7 +461,16 @@ export class CoreEngine implements GridCore {
         }
       }
 
-      this.commitClears(toClearMap, 'fusion', cascade, steps);
+      // Singularity Combo Announcement Banner
+      steps.push({
+        type: 'combo',
+        cascade: 8,
+        title: '¡VÓRTICE CÓSMICO!',
+        tier: 5,
+        points: SPECIAL_POINTS.rainbowRainbowFusion,
+      });
+
+      this.commitClears(toClearMap, 'fusion', cascade, steps, true, center);
     }
 
     // Now gravity and refill after fusion
@@ -551,7 +566,7 @@ export class CoreEngine implements GridCore {
     this.processActivationQueue(queue, activatedIds, toClearMap, steps);
 
     // 3. Commit clears and remove gems from board
-    this.commitClears(toClearMap, 'match', cascade, steps);
+    this.commitClears(toClearMap, 'match', cascade, steps, false, undefined, spawnsToPlace.length > 0);
 
     // 4. Place spawned specials onto the board (IMMUNE to this wave and turn's passive cascade matches)
     for (const sp of spawnsToPlace) {
@@ -639,6 +654,7 @@ export class CoreEngine implements GridCore {
       } else if (act.gem.kind === 'rainbow') {
         // Rainbow triggered by explosion: activates against most abundant color
         const targetColor = getMostAbundantColor(this.board);
+        const affected: Cell[] = [];
 
         toClearMap.set(`${act.cell.r},${act.cell.c}`, {
           cell: act.cell,
@@ -652,6 +668,7 @@ export class CoreEngine implements GridCore {
             const gem = this.board[r][c];
             if (gem && gem.kind !== 'rainbow' && gem.color === targetColor) {
               const cell = { r, c };
+              affected.push(cell);
               toClearMap.set(`${r},${c}`, { cell, gem, wave: act.wave + 1 });
               if (gem.kind === 'bomb' && !activatedIds.has(gem.id)) {
                 activatedIds.add(gem.id);
@@ -669,6 +686,15 @@ export class CoreEngine implements GridCore {
             }
           }
         }
+
+        steps.push({
+          type: 'detonate',
+          origin: act.cell,
+          gem: act.gem,
+          affected,
+          wave: act.wave,
+          trigger: act.trigger,
+        });
       }
     }
   }
@@ -680,7 +706,10 @@ export class CoreEngine implements GridCore {
     toClearMap: Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>,
     cause: ClearCause,
     cascade: number,
-    steps: Step[]
+    steps: Step[],
+    isBlackHole?: boolean,
+    vortexCenter?: Cell,
+    hasPendingSpawns?: boolean
   ): void {
     if (toClearMap.size === 0) return;
 
@@ -720,7 +749,34 @@ export class CoreEngine implements GridCore {
       cause,
       cascade,
       points: wavePoints,
+      isBlackHole,
+      vortexCenter,
     });
+
+    // Check if the board has been completely cleared (Full Board Clear / Tablero Limpio)
+    if (!hasPendingSpawns && this.isBoardCompletelyEmpty()) {
+      const phrase = getRandomBoardClearExclamation(this.rngManager?.eventRng);
+      const bonusPoints = SPECIAL_POINTS.boardClear;
+      this.progress.score += bonusPoints;
+      steps.push({
+        type: 'boardClear',
+        title: phrase,
+        points: bonusPoints,
+      });
+    }
+  }
+
+  public isBoardCompletelyEmpty(): boolean {
+    const rows = this.board.length;
+    const cols = this.board[0].length;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (this.board[r][c] !== null) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   /**
@@ -898,22 +954,24 @@ export class CoreEngine implements GridCore {
     const cols = this.board[0].length;
     const maxShuffleAttempts = 50;
 
-    let attempts = 0;
-    while (this.findValidMoves().length === 0 && attempts < maxShuffleAttempts) {
-      attempts++;
-      const allCells: Cell[] = [];
-      const gems: Gem[] = [];
+    if (this.findValidMoves().length > 0) return;
 
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const gem = this.board[r][c];
-          if (gem) {
-            allCells.push({ r, c });
-            gems.push(gem);
-          }
+    // Map each existing gem ID to its current location before shuffle
+    const prevLocation = new Map<number, Cell>();
+    const baseGems: Gem[] = [];
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const gem = this.board[r][c];
+        if (gem) {
+          prevLocation.set(gem.id, { r, c });
+          baseGems.push(gem);
         }
       }
+    }
 
+    for (let attempt = 0; attempt < maxShuffleAttempts; attempt++) {
+      const gems = [...baseGems];
       // Fisher-Yates shuffle using shuffleRng
       for (let i = gems.length - 1; i > 0; i--) {
         const j = this.rngManager.shuffleRng.int(i + 1);
@@ -922,32 +980,36 @@ export class CoreEngine implements GridCore {
         gems[j] = temp;
       }
 
+      // Build candidate board without mutating this.board
+      const candidate: Board = cloneBoard(this.board);
       const shuffleMoves: { id: number; from: Cell; to: Cell }[] = [];
       let idx = 0;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const newGem = gems[idx];
-          const oldGem = this.board[r][c]!;
-          if (newGem.id !== oldGem.id) {
+          const oldGem = this.board[r][c];
+          if (oldGem && newGem.id !== oldGem.id) {
+            const fromCell = prevLocation.get(newGem.id) ?? { r, c };
             shuffleMoves.push({
               id: newGem.id,
-              from: allCells[idx],
+              from: fromCell,
               to: { r, c },
             });
           }
-          this.board[r][c] = newGem;
+          candidate[r][c] = newGem;
           idx++;
         }
       }
 
-      // Check that the shuffle doesn't accidentally have matches
-      const accidentalMatches = evaluateMatches(this.board);
-      if (accidentalMatches.length === 0 && this.findValidMoves().length > 0) {
+      // Check candidate board
+      const accidentalMatches = evaluateMatches(candidate);
+      if (accidentalMatches.length === 0 && findValidMoves(candidate).length > 0) {
+        this.board = candidate;
         steps.push({
           type: 'shuffle',
           moves: shuffleMoves,
         });
-        break;
+        return;
       }
     }
   }

@@ -601,12 +601,50 @@ export class GemViewManager {
     }
   }
 
+  public disposeView(view: GemView) {
+    if (view.shaderMaterial) {
+      view.shaderMaterial.dispose();
+    }
+    if (view.halo) {
+      view.halo.material.dispose();
+    }
+    if (view.bombBadge) {
+      view.bombBadge.material.dispose();
+    }
+    if (view.tier2Ring) {
+      if (Array.isArray(view.tier2Ring.material)) {
+        view.tier2Ring.material.forEach((m) => m.dispose());
+      } else {
+        view.tier2Ring.material.dispose();
+      }
+    }
+    if (view.sparks) {
+      view.sparks.geometry.dispose();
+      if (Array.isArray(view.sparks.material)) {
+        view.sparks.material.forEach((m) => m.dispose());
+      } else {
+        view.sparks.material.dispose();
+      }
+    }
+    if (view.rainbowAura) {
+      view.rainbowAura.material.dispose();
+    }
+    if (view.rainbowStars) {
+      view.rainbowStars.children.forEach((child) => {
+        if (child instanceof THREE.Sprite) {
+          child.material.dispose();
+        }
+      });
+    }
+  }
+
   public removeView(id: number): GemView | undefined {
     const view = this.views.get(id);
     if (view) {
       if (view.group.parent) {
         view.group.parent.remove(view.group);
       }
+      this.disposeView(view);
       this.views.delete(id);
     }
     return view;
@@ -617,8 +655,16 @@ export class GemViewManager {
       if (view.group.parent) {
         view.group.parent.remove(view.group);
       }
+      this.disposeView(view);
     }
     this.views.clear();
+  }
+
+  public destroy() {
+    this.clearAll();
+    this.gemPlaneGeo.dispose();
+    this.rainbowGeo.dispose();
+    this.ringGeo.dispose();
   }
 
   public setSkinMode(mode: GemSkinMode) {

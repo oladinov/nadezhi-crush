@@ -77,6 +77,41 @@ export function getLevelBiome(level: number): BiomeInfo {
       image: '/fantasy_volcano.jpg',
       desc: 'Tierras volcánicas con ríos de fuego y desafíos ardientes.',
     };
+  } else if (level <= 24) {
+    return {
+      name: 'Erebor',
+      icon: '⛏️',
+      image: '/fantasy_erebor.jpg',
+      desc: 'El más grande reino de la Tierra Media forjado bajo la Montaña Solitaria.',
+    };
+  } else if (level <= 28) {
+    return {
+      name: 'Númenórë',
+      icon: '⚓',
+      image: '/fantasy_numenor.jpg',
+      desc: 'Majestuoso imperio marítimo de los Dúnedain sobre el gran océano.',
+    };
+  } else if (level <= 32) {
+    return {
+      name: 'Pixie Hollow',
+      icon: '🧚',
+      image: '/fantasy_pixie.jpg',
+      desc: 'El valle encantado de las hadas, flores gigantes y polvillo dorado.',
+    };
+  } else if (level <= 36) {
+    return {
+      name: 'Nunca Jamás',
+      icon: '🏴‍☠️',
+      image: '/fantasy_neverland.jpg',
+      desc: 'La mítica isla de piratas, lagunas de sirenas y eterna juventud.',
+    };
+  } else if (level <= 40) {
+    return {
+      name: 'Monte Vesubio',
+      icon: '🔮',
+      image: '/fantasy_vesubio.jpg',
+      desc: 'La misteriosa guarida volcánica y santuario arcano de Magica De Spell.',
+    };
   } else {
     return {
       name: 'Tierras Infinitas',
@@ -98,10 +133,12 @@ export interface UIGoal {
 
 export interface UIStateUpdate {
   level: number;
+  maxLevel: number;
   title: string;
   description: string;
   movesLeft: number;
   score: number;
+  targetScore: number;
   goals: UIGoal[];
   state: GameState;
   skinMode: GemSkinMode;
@@ -122,17 +159,48 @@ export class Match3Game {
 
   public state: GameState = 'Idle';
   public currentLevel = 1;
+  public maxLevel = 1;
 
   private inactivityTimer: any = null;
   private onUIUpdateCallback?: (ui: UIStateUpdate) => void;
 
   constructor(private container: HTMLElement, onUIUpdate?: (ui: UIStateUpdate) => void) {
     this.onUIUpdateCallback = onUIUpdate;
+    this.loadSavedProgress();
     this.initLevel(this.currentLevel);
+  }
+
+  private loadSavedProgress() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const savedCur = localStorage.getItem('nadezhi_current_level');
+        const savedMax = localStorage.getItem('nadezhi_max_level');
+        if (savedCur) {
+          const curNum = parseInt(savedCur, 10);
+          if (!isNaN(curNum) && curNum >= 1) this.currentLevel = Math.min(curNum, 100);
+        }
+        if (savedMax) {
+          const maxNum = parseInt(savedMax, 10);
+          if (!isNaN(maxNum) && maxNum >= 1) this.maxLevel = Math.min(maxNum, 100);
+        }
+      }
+    } catch {
+      this.maxLevel = 1;
+      this.currentLevel = 1;
+    }
   }
 
   public async initLevel(levelNumber: number) {
     this.currentLevel = levelNumber;
+    this.maxLevel = Math.max(this.maxLevel, levelNumber);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('nadezhi_current_level', this.currentLevel.toString());
+        localStorage.setItem('nadezhi_max_level', this.maxLevel.toString());
+      }
+    } catch {
+      // Ignore if localStorage unavailable
+    }
     const config = getLevelConfig(levelNumber);
 
     const previousSkin: GemSkinMode = this.gemManager ? this.gemManager.skinMode : 'emotes';
@@ -140,8 +208,8 @@ export class Match3Game {
     // Clean up previous scene if exists
     if (this.scene) {
       this.clearInactivityTimer();
-      this.fx.clearAll();
-      this.gemManager.clearAll();
+      this.fx.destroy();
+      this.gemManager.destroy();
       this.input.destroy();
       this.player.destroy();
       this.scene.destroy();
@@ -172,13 +240,18 @@ export class Match3Game {
     this.input.inputLock = true;
     this.notifyUI();
 
-    // 4. Animate cascading entrance into the empty board
-    await this.player.playBoardEntrance(this.core.snapshot);
-
-    this.state = 'Idle';
-    this.input.inputLock = false;
-    this.resetInactivityTimer();
-    this.notifyUI();
+    try {
+      // 4. Animate cascading entrance into the empty board
+      await this.player.playBoardEntrance(this.core.snapshot);
+    } catch (err) {
+      console.error('Error during board entrance:', err);
+      this.player.verifyAndResync(this.core.snapshot);
+    } finally {
+      this.state = 'Idle';
+      this.input.inputLock = false;
+      this.resetInactivityTimer();
+      this.notifyUI();
+    }
   }
 
   public handleSelection(cell: Cell | null) {
@@ -201,38 +274,64 @@ export class Match3Game {
     this.input.inputLock = true;
     this.notifyUI();
 
-    // Core resolves entire turn synchronously and deterministically
-    const result: TurnResult = this.core.resolveMove(a, b);
+    try {
+      // Core resolves entire turn synchronously and deterministically
+      const result: TurnResult = this.core.resolveMove(a, b);
 
-    // Running score for real-time HUD updates on each cascade wave
-    let displayedScore = this.core.progress.score - result.pointsGained;
+      // Running score for real-time HUD updates on each cascade wave
+      let displayedScore = this.core.progress.score - result.pointsGained;
 
-    // View replays steps asynchronously with GSAP and real-time score increments
-    await this.player.play(result.steps, this.core.snapshot, (step) => {
-      if (step.type === 'clear') {
-        displayedScore += step.points;
-        this.notifyUI(displayedScore);
-      }
-    });
-
-    if (result.outcome === 'won') {
-      this.state = 'LevelComplete';
-      sound.playWin();
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
+      // View replays steps asynchronously with GSAP and real-time score increments
+      await this.player.play(result.steps, this.core.snapshot, (step) => {
+        if (step.type === 'clear' || step.type === 'boardClear') {
+          displayedScore += step.points;
+          this.notifyUI(displayedScore);
+        } else if (step.type === 'combo') {
+          displayedScore += step.points;
+          this.notifyUI(displayedScore);
+        } else if (step.type === 'detonate' && step.points) {
+          displayedScore += step.points;
+          this.notifyUI(displayedScore);
+        }
       });
-    } else if (result.outcome === 'lost') {
-      this.state = 'LevelFailed';
-      sound.playDefeat();
-    } else {
+
+      if (result.outcome === 'won') {
+        this.state = 'LevelComplete';
+        this.maxLevel = Math.max(this.maxLevel, this.currentLevel + 1);
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('nadezhi_max_level', this.maxLevel.toString());
+          }
+        } catch {
+          // Ignore
+        }
+        sound.playWin();
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } else if (result.outcome === 'lost') {
+        this.state = 'LevelFailed';
+        sound.playDefeat();
+      } else {
+        this.state = 'Idle';
+        this.input.inputLock = false;
+        this.resetInactivityTimer();
+      }
+    } catch (err) {
+      console.error('Error during move resolution/animation:', err);
+      this.player.verifyAndResync(this.core.snapshot);
       this.state = 'Idle';
       this.input.inputLock = false;
       this.resetInactivityTimer();
+    } finally {
+      if (this.state === 'Resolving') {
+        this.state = 'Idle';
+        this.input.inputLock = false;
+      }
+      this.notifyUI();
     }
-
-    this.notifyUI();
   }
 
   private resetInactivityTimer() {
@@ -372,13 +471,17 @@ export class Match3Game {
     });
 
     const biome = getLevelBiome(this.currentLevel);
+    const scoreGoal = this.core.config.goals.find((g) => g.type === 'score');
+    const targetScore = scoreGoal ? scoreGoal.target : 2000;
 
     this.onUIUpdateCallback({
       level: this.currentLevel,
+      maxLevel: this.maxLevel,
       title: this.core.config.title || `Nivel ${this.currentLevel}`,
       description: this.core.config.description || '',
       movesLeft: this.core.movesLeft,
       score: currentScore,
+      targetScore,
       goals: goalsData,
       state: this.state,
       skinMode: this.gemManager.skinMode,

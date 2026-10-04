@@ -52,39 +52,30 @@ export class TimelinePlayer {
   }
 
   private executeStep(step: Step): Promise<void> {
-    return new Promise((resolve) => {
-      switch (step.type) {
-        case 'swap':
-          this.handleSwap(step, resolve);
-          break;
-        case 'transform':
-          this.handleTransform(step, resolve);
-          break;
-        case 'detonate':
-          this.handleDetonate(step, resolve);
-          break;
-        case 'clear':
-          this.handleClear(step, resolve);
-          break;
-        case 'spawnSpecial':
-          this.handleSpawnSpecial(step, resolve);
-          break;
-        case 'gravity':
-          this.handleGravity(step, resolve);
-          break;
-        case 'refill':
-          this.handleRefill(step, resolve);
-          break;
-        case 'shuffle':
-          this.handleShuffle(step, resolve);
-          break;
-        case 'combo':
-          this.handleCombo(step, resolve);
-          break;
-        default:
-          resolve();
-      }
-    });
+    switch (step.type) {
+      case 'swap':
+        return new Promise((resolve) => this.handleSwap(step, resolve));
+      case 'transform':
+        return new Promise((resolve) => this.handleTransform(step, resolve));
+      case 'detonate':
+        return this.handleDetonate(step);
+      case 'clear':
+        return this.handleClear(step);
+      case 'spawnSpecial':
+        return new Promise((resolve) => this.handleSpawnSpecial(step, resolve));
+      case 'gravity':
+        return new Promise((resolve) => this.handleGravity(step, resolve));
+      case 'refill':
+        return new Promise((resolve) => this.handleRefill(step, resolve));
+      case 'shuffle':
+        return new Promise((resolve) => this.handleShuffle(step, resolve));
+      case 'combo':
+        return new Promise((resolve) => this.handleCombo(step, resolve));
+      case 'boardClear':
+        return new Promise((resolve) => this.handleBoardClear(step, resolve));
+      default:
+        return Promise.resolve();
+    }
   }
 
   private handleSwap(step: Extract<Step, { type: 'swap' }>, done: () => void) {
@@ -198,7 +189,7 @@ export class TimelinePlayer {
     });
   }
 
-  private async handleDetonate(step: Extract<Step, { type: 'detonate' }>, done: () => void) {
+  private async handleDetonate(step: Extract<Step, { type: 'detonate' }>): Promise<void> {
     const originPos = this.scene.cellToWorld(step.origin.r, step.origin.c);
     const tier = (step.gem.kind === 'bomb' ? step.gem.tier : 1) as 1 | 2;
 
@@ -219,6 +210,17 @@ export class TimelinePlayer {
       );
       sound.playChainSpark();
       await this.fx.showChainBlastBeam(sourcePos, originPos);
+    }
+
+    if (step.gem.kind === 'rainbow') {
+      sound.playRainbowBeam();
+      this.fx.shake(2.2);
+      const targetPositions = step.affected.map((c) => this.scene.cellToWorld(c.r, c.c));
+      await this.fx.spawnRainbowPrismaticBeams(originPos, targetPositions, 0xffffff);
+      if (step.points && step.points > 0) {
+        this.fx.spawnFloatingScore(originPos, step.points, '#facc15');
+      }
+      return;
     }
 
     // 1. Telegraph stage: Bomb glows and pulses with ignition sound
@@ -258,11 +260,24 @@ export class TimelinePlayer {
       sound.playCrossBlast();
       await this.fx.spawnBombermanCrossBlast(originPos);
     }
-
-    done();
   }
 
-  private async handleClear(step: Extract<Step, { type: 'clear' }>, done: () => void) {
+  private async handleClear(step: Extract<Step, { type: 'clear' }>): Promise<void> {
+    if (step.isBlackHole && step.vortexCenter) {
+      const vortexPos = this.scene.cellToWorld(step.vortexCenter.r, step.vortexCenter.c);
+      const views = step.cells
+        .map((item) => this.gemManager.views.get(item.gem.id))
+        .filter(Boolean);
+
+      sound.playBlackHoleHum();
+      await this.fx.spawnBlackHoleSingularity(vortexPos, views);
+
+      for (const item of step.cells) {
+        this.gemManager.removeView(item.gem.id);
+      }
+      return;
+    }
+
     if (step.cause === 'fusion') {
       sound.playBombExplosion(2);
       this.fx.shake(3.2);
@@ -297,82 +312,84 @@ export class TimelinePlayer {
       this.fx.shake(Math.min(2.5, 0.5 + step.cells.length * 0.15));
     }
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        // Remove cleared views from view manager and scene
-        for (const item of step.cells) {
-          this.gemManager.removeView(item.gem.id);
-        }
-        this.removeTimeline(tl);
-        done();
-      },
-    });
-    this.activeTimelines.push(tl);
+    await new Promise<void>((resolve) => {
+      const tl = gsap.timeline({
+        onComplete: () => {
+          // Remove cleared views from view manager and scene
+          for (const item of step.cells) {
+            this.gemManager.removeView(item.gem.id);
+          }
+          this.removeTimeline(tl);
+          resolve();
+        },
+      });
+      this.activeTimelines.push(tl);
 
-    // Calculate score per item for floating indicators
-    const ptsPerGem = Math.round(step.points / Math.max(1, step.cells.length));
+      // Calculate score per item for floating indicators
+      const ptsPerGem = Math.round(step.points / Math.max(1, step.cells.length));
 
-    step.cells.forEach((item, idx) => {
-      const view = this.gemManager.views.get(item.gem.id);
-      const worldPos = this.scene.cellToWorld(item.cell.r, item.cell.c);
-      const delay = (item.wave - 1) * 0.05 + idx * 0.015;
+      step.cells.forEach((item, idx) => {
+        const view = this.gemManager.views.get(item.gem.id);
+        const worldPos = this.scene.cellToWorld(item.cell.r, item.cell.c);
+        const delay = (item.wave - 1) * 0.05 + idx * 0.015;
 
-      const colorHex =
-        item.gem.kind === 'rainbow'
-          ? 0xffffff
-          : this.gemManager.COLOR_HEXES[item.gem.color];
+        const colorHex =
+          item.gem.kind === 'rainbow'
+            ? 0xffffff
+            : this.gemManager.COLOR_HEXES[item.gem.color];
 
-      this.fx.spawnBurst(worldPos, colorHex, 8, 1.0);
+        this.fx.spawnBurst(worldPos, colorHex, 8, 1.0);
 
-      const itemPts = item.points ?? ptsPerGem;
-      if (itemPts > 0) {
-        const scoreColor = itemPts >= 500 ? '#fde047' : '#fef08a';
-        if (delay > 0) {
-          gsap.delayedCall(delay, () => {
+        const itemPts = item.points ?? ptsPerGem;
+        if (itemPts > 0) {
+          const scoreColor = itemPts >= 500 ? '#fde047' : '#fef08a';
+          if (delay > 0) {
+            gsap.delayedCall(delay, () => {
+              this.fx.spawnFloatingScore(worldPos, itemPts, scoreColor);
+            });
+          } else {
             this.fx.spawnFloatingScore(worldPos, itemPts, scoreColor);
-          });
-        } else {
-          this.fx.spawnFloatingScore(worldPos, itemPts, scoreColor);
+          }
         }
-      }
 
-      if (view) {
-        // Dramatic cartoon pop: swell anticipation, snappy pop, burst flash, juicy pop sound
-        tl.to(
-          view.group.scale,
-          {
-            x: 1.25,
-            y: 1.25,
-            duration: 0.08,
-            ease: 'back.out(2)',
-          },
-          delay
-        );
-        tl.to(
-          view.group.scale,
-          {
-            x: 0,
-            y: 0,
-            duration: 0.12,
-            ease: 'back.in(2.5)',
-          },
-          delay + 0.08
-        );
-        tl.to(
-          view.mesh.rotation,
-          {
-            z: Math.PI * 0.5,
-            duration: 0.2,
-            ease: 'power1.in',
-          },
-          delay
-        );
+        if (view) {
+          // Dramatic cartoon pop: swell anticipation, snappy pop, burst flash, juicy pop sound
+          tl.to(
+            view.group.scale,
+            {
+              x: 1.25,
+              y: 1.25,
+              duration: 0.08,
+              ease: 'back.out(2)',
+            },
+            delay
+          );
+          tl.to(
+            view.group.scale,
+            {
+              x: 0,
+              y: 0,
+              duration: 0.12,
+              ease: 'back.in(2.5)',
+            },
+            delay + 0.08
+          );
+          tl.to(
+            view.mesh.rotation,
+            {
+              z: Math.PI * 0.5,
+              duration: 0.2,
+              ease: 'power1.in',
+            },
+            delay
+          );
 
-        gsap.delayedCall(delay + 0.07, () => {
-          this.fx.spawnCartoonPop(worldPos, colorHex);
-          sound.playPopSound(1.0 + Math.min(0.6, (step.cascade - 1) * 0.12));
-        });
-      }
+          gsap.delayedCall(delay + 0.07, () => {
+            this.fx.spawnCartoonPop(worldPos, colorHex);
+            sound.playPopSound(1.0 + Math.min(0.6, (step.cascade - 1) * 0.12));
+          });
+        }
+      });
     });
   }
 
@@ -505,6 +522,9 @@ export class TimelinePlayer {
   }
 
   private handleShuffle(step: Extract<Step, { type: 'shuffle' }>, done: () => void) {
+    sound.playSpawnSpecial();
+    this.fx.showShuffleBanner();
+
     const tl = gsap.timeline({
       onComplete: () => {
         this.removeTimeline(tl);
@@ -523,7 +543,7 @@ export class TimelinePlayer {
         {
           x: targetPos.x,
           y: targetPos.y,
-          duration: 0.35,
+          duration: 0.45,
           ease: 'power2.inOut',
         },
         0
@@ -537,6 +557,14 @@ export class TimelinePlayer {
     setTimeout(() => {
       done();
     }, 180);
+  }
+
+  private handleBoardClear(step: Extract<Step, { type: 'boardClear' }>, done: () => void) {
+    sound.playBoardClearFanfare();
+    this.fx.showBoardClearBanner(step.title, step.points);
+    setTimeout(() => {
+      done();
+    }, 700);
   }
 
   /**
