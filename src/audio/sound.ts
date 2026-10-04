@@ -54,6 +54,9 @@ class SoundManager {
       const bgmMuted = localStorage.getItem('nadezhi_bgm_muted');
       if (bgmMuted !== null) this.isBgmMuted = bgmMuted === 'true';
     } catch {}
+    if (this.isBgmMuted || this.isMuted) {
+      this.isBgmPlaying = false;
+    }
   }
 
   public get currentTrack(): MusicTrack {
@@ -114,7 +117,14 @@ class SoundManager {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
-    if (this.isBgmPlaying && !this.isMuted && !this.isBgmMuted && this.bgmAudio && this.bgmAudio.paused) {
+    if (this.isBgmMuted || this.isMuted) {
+      if (this.bgmAudio && !this.bgmAudio.paused) {
+        this.bgmAudio.pause();
+      }
+      this.isBgmPlaying = false;
+      return;
+    }
+    if (this.isBgmPlaying && this.bgmAudio && this.bgmAudio.paused) {
       this.bgmAudio.play().catch(() => {});
     }
   }
@@ -134,7 +144,7 @@ class SoundManager {
   public loadTrack(index: number) {
     this.currentTrackIndex = index % FANTASY_PLAYLIST.length;
     const track = FANTASY_PLAYLIST[this.currentTrackIndex];
-    const wasPlaying = this.isBgmPlaying;
+    const wasPlaying = this.isBgmPlaying && !this.isBgmMuted && !this.isMuted;
     if (this.bgmAudio) {
       this.bgmAudio.pause();
       this.bgmAudio.src = track.file;
@@ -224,6 +234,15 @@ class SoundManager {
       this.masterGainNode.gain.setTargetAtTime(this.isMuted ? 0 : this.masterVolume, this.ctx.currentTime, 0.05);
     }
     this.updateBgmVolume();
+    if (this.isMuted) {
+      if (this.bgmAudio && !this.bgmAudio.paused) {
+        this.bgmAudio.pause();
+      }
+    } else {
+      if (!this.isBgmMuted && this.hasUserInteracted && this.bgmAudio && this.bgmAudio.paused) {
+        this.startBGM();
+      }
+    }
     try { localStorage.setItem('nadezhi_muted', String(this.isMuted)); } catch {}
   }
 
@@ -239,9 +258,10 @@ class SoundManager {
       if (this.bgmAudio && !this.bgmAudio.paused) {
         this.bgmAudio.pause();
       }
+      this.isBgmPlaying = false;
     } else {
-      if (this.isBgmPlaying && this.bgmAudio && this.bgmAudio.paused) {
-        this.bgmAudio.play().catch(() => {});
+      if (this.hasUserInteracted && this.bgmAudio && this.bgmAudio.paused) {
+        this.startBGM();
       }
     }
     try { localStorage.setItem('nadezhi_bgm_muted', String(this.isBgmMuted)); } catch {}
@@ -255,7 +275,7 @@ class SoundManager {
   public userGesture() {
     this.hasUserInteracted = true;
     this.initCtx();
-    if (!this.isBgmPlaying && this.bgmAudio) {
+    if (!this.isBgmPlaying && !this.isBgmMuted && !this.isMuted && this.bgmAudio) {
       this.startBGM();
     }
   }
@@ -263,6 +283,13 @@ class SoundManager {
   public startBGM() {
     if (!this.bgmAudio) {
       this.initAudioElement();
+    }
+    if (this.isBgmMuted || this.isMuted) {
+      if (this.bgmAudio && !this.bgmAudio.paused) {
+        this.bgmAudio.pause();
+      }
+      this.isBgmPlaying = false;
+      return;
     }
     if (this.bgmAudio) {
       this.updateBgmVolume();

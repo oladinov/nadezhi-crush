@@ -196,7 +196,7 @@ export class GameScene {
     const { rows, cols } = this.dimensions;
     // Provide generous headroom for top HUD and goal chips so they never overlap the board
     const boardW = cols + 1.2;
-    const boardH = rows + 3.0;
+    const boardH = rows + 3.2;
 
     let viewWidth: number;
     let viewHeight: number;
@@ -209,8 +209,8 @@ export class GameScene {
       viewHeight = viewWidth / aspect;
     }
 
-    // Offset camera slightly downward (-0.65) to shift the board down into comfortable play area
-    const offsetY = -0.65;
+    // Offset camera slightly downward (-0.7) to shift the board down into comfortable play area
+    const offsetY = -0.7;
 
     this.camera.left = -viewWidth / 2;
     this.camera.right = viewWidth / 2;

@@ -19,37 +19,44 @@
 </head>
 <body>
   <div id="app">
-    <!-- TOP HUD -->
-    <header class="hud-header">
-      <div class="hud-panel hud-panel-left">
-        <button id="btn-levels" class="card-pill level-title-container" style="cursor: pointer; border: none;" title="Seleccionar Nivel">
-          <span id="ui-level-badge" class="level-badge">Nivel 1</span>
-          <span id="ui-level-name" class="level-name">Primeros Pasos ▾</span>
-          <span id="ui-biome-name" class="biome-name">🌿 Praderas del Valle</span>
-        </button>
-      </div>
-
-      <div class="hud-panel hud-panel-center">
-        <div class="card-pill moves-badge">
-          <div style="text-align: center;">
-            <div id="ui-moves" class="moves-count">20</div>
-            <div class="moves-label">Movimientos</div>
-          </div>
+    <!-- TOP HUD & GOALS WRAPPER -->
+    <div class="hud-top-wrapper">
+      <header class="hud-header">
+        <div class="hud-panel hud-panel-left">
+          <button id="btn-levels" class="card-pill level-title-container" style="cursor: pointer; border: none;" title="Seleccionar Nivel">
+            <span id="ui-level-badge" class="level-badge">Nivel 1</span>
+            <span id="ui-level-name" class="level-name">Primeros Pasos ▾</span>
+            <span id="ui-biome-name" class="biome-name">🌿 Praderas del Valle</span>
+          </button>
         </div>
-      </div>
 
-      <div class="hud-panel hud-panel-right">
-        <div class="card-pill score-badge">
-          <div>
-            <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Puntos</div>
-            <div id="ui-score" class="score-val">0</div>
+        <div class="hud-panel hud-panel-center">
+          <div class="card-pill moves-badge">
+            <div style="text-align: center;">
+              <div id="ui-moves" class="moves-count">20</div>
+              <div class="moves-label">Movimientos</div>
+            </div>
           </div>
         </div>
 
-        <!-- SETTINGS / PAUSE BUTTON -->
-        <button id="btn-settings" class="btn-icon btn-settings" title="Ajustes y Opciones">⚙️</button>
+        <div class="hud-panel hud-panel-right">
+          <div class="card-pill score-badge">
+            <div>
+              <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Puntos</div>
+              <div id="ui-score" class="score-val">0</div>
+            </div>
+          </div>
+
+          <!-- SETTINGS / PAUSE BUTTON -->
+          <button id="btn-settings" class="btn-icon btn-settings" title="Ajustes y Opciones">⚙️</button>
+        </div>
+      </header>
+
+      <!-- GOALS CONTAINER (FLOWS UNDER HEADER, CANNOT OVERLAP) -->
+      <div id="ui-goals" class="goals-container">
+        <!-- Injected via TypeScript -->
       </div>
-    </header>
+    </div>
 
     <!-- KILLER INSTINCT STYLE COMBO BANNER -->
     <div id="combo-banner-container" class="combo-banner-container"></div>
@@ -85,11 +92,6 @@
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- GOALS CONTAINER -->
-    <div id="ui-goals" class="goals-container">
-      <!-- Injected via TypeScript -->
     </div>
 
     <!-- THREE.JS CANVAS CONTAINER -->

@@ -51,19 +51,27 @@ html, body {
   z-index: 1;
 }
 
-/* TOP HUD */
-.hud-header {
+/* TOP HUD & GOALS WRAPPER */
+.hud-top-wrapper {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(11, 15, 25, 0.95) 0%, rgba(11, 15, 25, 0.65) 70%, rgba(11, 15, 25, 0) 100%);
+  padding: 8px 16px 14px 16px;
+}
+
+.hud-header {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(11, 15, 25, 0.9) 0%, rgba(11, 15, 25, 0) 100%);
 }
 
 .hud-panel {
@@ -121,11 +129,11 @@ html, body {
   display: flex;
   flex-direction: column;
   text-align: left;
-  max-width: 150px;
+  max-width: 240px;
 }
 
 .level-badge {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -133,9 +141,12 @@ html, body {
 }
 
 .level-name {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 800;
   color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .biome-name {
@@ -143,6 +154,9 @@ html, body {
   color: #a7f3d0;
   font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .moves-badge {
@@ -271,18 +285,15 @@ html, body {
   transform: translateY(0) scale(0.96);
 }
 
-/* GOALS BAR */
+/* GOALS BAR (FLOWS UNDER HUD HEADER) */
 .goals-container {
-  position: absolute;
-  top: 72px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   justify-content: center;
+  align-items: center;
   flex-wrap: wrap;
-  max-width: 96vw;
   gap: 8px;
-  z-index: 10;
+  max-width: 96vw;
+  margin-top: 6px;
   pointer-events: none;
 }
 
@@ -332,7 +343,7 @@ html, body {
 /* FLOATING TOAST BANNER */
 .toast-banner {
   position: absolute;
-  top: 76px;
+  top: 96px;
   right: 20px;
   background: rgba(15, 23, 42, 0.94);
   border: 1px solid rgba(56, 189, 248, 0.4);
@@ -1727,67 +1738,83 @@ html, body {
    MOBILE RESPONSIVENESS (< 600px)
    ========================================== */
 @media (max-width: 600px) {
+  .hud-top-wrapper {
+    padding: 6px 8px 10px 8px;
+  }
+
   .hud-header {
-    padding: 6px 10px;
+    padding: 0;
   }
 
   .card-pill {
-    padding: 4px 10px;
+    padding: 4px 8px;
     gap: 6px;
   }
 
   .level-title-container {
-    max-width: 105px;
+    max-width: 110px;
   }
 
   .level-badge {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
   }
 
   .level-name {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .biome-name {
-    font-size: 0.65rem;
     display: none;
   }
 
-  .moves-val {
-    font-size: 1.4rem;
+  .moves-badge {
+    padding: 3px 12px;
+  }
+
+  .moves-count {
+    font-size: 1.35rem;
+  }
+
+  .moves-label {
+    font-size: 0.62rem;
   }
 
   .score-badge {
-    min-width: 80px;
+    min-width: 76px;
+    padding: 3px 8px;
   }
 
   .score-val {
-    font-size: 1.05rem;
+    font-size: 1rem;
   }
 
   .btn-settings {
-    width: 38px;
-    height: 38px;
-    font-size: 1.15rem;
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
   }
 
   .goals-container {
-    top: 60px;
-    gap: 6px;
+    margin-top: 4px;
+    gap: 5px;
   }
 
   .goal-chip {
-    padding: 4px 10px;
-    font-size: 0.78rem;
-    gap: 6px;
+    padding: 3px 8px;
+    font-size: 0.74rem;
+    gap: 5px;
   }
 
   .goal-chip-thumb {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .toast-banner {
+    top: 80px;
   }
 
   .modal-card {
