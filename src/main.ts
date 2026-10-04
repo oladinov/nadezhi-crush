@@ -34,6 +34,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnRestart = document.getElementById('btn-restart')!;
   const btnLevels = document.getElementById('btn-levels')!;
   const btnLeaderboard = document.getElementById('btn-leaderboard')!;
+  const btnSettings = document.getElementById('btn-settings')!;
+  const modalSettings = document.getElementById('modal-settings')!;
+  const btnCloseSettings = document.getElementById('btn-close-settings')!;
+  const btnContinueGame = document.getElementById('btn-continue-game')!;
 
   // Toast notification
   const toastBanner = document.getElementById('toast-banner')!;
@@ -118,11 +122,11 @@ window.addEventListener('DOMContentLoaded', () => {
     // Music buttons
     if (btnMusicToggle) {
       if (ui.isBgmMuted) {
-        btnMusicToggle.textContent = '🔇';
+        btnMusicToggle.textContent = '🔇 Música Silenciada';
         btnMusicToggle.classList.add('music-muted');
         btnMusicToggle.title = 'Música silenciada (efectos activos) • Click para activar música';
       } else {
-        btnMusicToggle.textContent = '🎵';
+        btnMusicToggle.textContent = '🎵 Música Activa';
         btnMusicToggle.classList.remove('music-muted');
         btnMusicToggle.title = 'Música activa • Click para silenciar solo la música';
       }
@@ -190,8 +194,8 @@ window.addEventListener('DOMContentLoaded', () => {
       volumeSlider.value = currentPercent.toString();
     }
 
-    // Skin state: default emotes show 🎭, click toggles to 💎
-    btnSkin.textContent = ui.skinMode === 'emotes' ? '🎭' : '💎';
+    // Skin state: default emotes show 🎭 Emotes, click toggles to 💎 Gemas
+    btnSkin.textContent = ui.skinMode === 'emotes' ? '🎭 Emotes' : '💎 Gemas';
     btnSkin.title = ui.skinMode === 'emotes' ? 'Apariencia: Emotes (Click para Joyas)' : 'Apariencia: Joyas (Click para Emotes)';
 
     // Modals
@@ -259,12 +263,40 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initialize Game
   const game = new Match3Game(container, handleUIUpdate);
 
+  // Trigger layout and resize pass to ensure canvas dimensions are ready on mobile/tablets
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new Event('resize'));
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 100);
+  });
+
   // User gesture to begin orchestral fantasy BGM
   const onFirstInteraction = () => {
     sound.userGesture();
     window.removeEventListener('pointerdown', onFirstInteraction);
   };
   window.addEventListener('pointerdown', onFirstInteraction);
+
+  // Settings modal controller
+  const closeSettings = () => {
+    modalSettings.classList.remove('active');
+  };
+
+  btnSettings.addEventListener('click', (e) => {
+    e.stopPropagation();
+    modalSettings.classList.add('active');
+  });
+
+  btnCloseSettings.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeSettings();
+  });
+
+  btnContinueGame.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeSettings();
+  });
 
   // Event Listeners
   btnSound.addEventListener('click', (e) => {
@@ -304,6 +336,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   btnRestart.addEventListener('click', (e) => {
     e.stopPropagation();
+    closeSettings();
     game.restartLevel();
   });
 
@@ -663,6 +696,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   btnLeaderboard.addEventListener('click', (e) => {
     e.stopPropagation();
+    closeSettings();
     openLeaderboard();
   });
   btnCloseLeaderboard.addEventListener('click', () => {
@@ -703,6 +737,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   btnHelp.addEventListener('click', (e) => {
     e.stopPropagation();
+    closeSettings();
     modalHelp.classList.add('active');
   });
   btnCloseHelp.addEventListener('click', () => {
@@ -724,7 +759,11 @@ window.addEventListener('DOMContentLoaded', () => {
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as any).standalone === true;
 
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isIPadOS =
+    (navigator.platform === 'MacIntel' || navigator.userAgent.includes('Macintosh')) &&
+    navigator.maxTouchPoints > 1;
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || isIPadOS;
   let deferredInstallPrompt: any = null;
 
   const hideInstallBanner = () => {

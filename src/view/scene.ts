@@ -20,13 +20,13 @@ export class GameScene {
   private animationFrameId: number | null = null;
   private onUpdateCallbacks: ((dt: number, time: number) => void)[] = [];
   private clock: THREE.Clock;
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(container: HTMLElement, rows = 8, cols = 8) {
     this.container = container;
     this.dimensions = { rows, cols, cellSize: 1.0 };
     this.clock = new THREE.Clock();
 
-    // 1. Scene
     // 1. Scene (transparent to display fantasy landscape backdrop)
     this.scene = new THREE.Scene();
     this.scene.background = null;
@@ -42,9 +42,11 @@ export class GameScene {
     this.boardGroup.add(this.fxGroup);
     this.scene.add(this.boardGroup);
 
-    // 3. Camera
-    const aspect = container.clientWidth / Math.max(1, container.clientHeight);
-    const viewSize = Math.max(rows, cols) + 1.8;
+    // 3. Camera with safe dimension fallback against initial 0px unmeasured mobile layout
+    const initW = Math.max(container.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800), 320);
+    const initH = Math.max(container.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 600), 320);
+    const aspect = initW / initH;
+    const viewSize = Math.max(rows, cols) + 3.0;
     this.camera = new THREE.OrthographicCamera(
       (-viewSize * aspect) / 2,
       (viewSize * aspect) / 2,
@@ -63,8 +65,8 @@ export class GameScene {
       alpha: true,
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setPixelRatio(Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2));
+    this.renderer.setSize(initW, initH);
     container.appendChild(this.renderer.domElement);
 
     // 5. Lights
@@ -78,8 +80,14 @@ export class GameScene {
     // 6. Build background grid
     this.createBoardGrid(rows, cols);
 
-    // 7. Resize handling
+    // 7. Resize handling (window event + container ResizeObserver)
     window.addEventListener('resize', this.onResize);
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.onResize();
+      });
+      this.resizeObserver.observe(this.container);
+    }
     this.onResize();
 
     // 8. Start render loop
@@ -174,14 +182,21 @@ export class GameScene {
   }
 
   private onResize = () => {
-    const width = this.container.clientWidth;
-    const height = Math.max(1, this.container.clientHeight);
+    let width = this.container.clientWidth;
+    let height = this.container.clientHeight;
+
+    // Safety fallback if container not yet measured by browser layout engine
+    if (!width || width <= 0) width = typeof window !== 'undefined' ? window.innerWidth : 800;
+    if (!height || height <= 0) height = typeof window !== 'undefined' ? window.innerHeight : 600;
+    if (!width || width <= 0) width = 800;
+    if (!height || height <= 0) height = 600;
+
     const aspect = width / height;
 
     const { rows, cols } = this.dimensions;
-    // Ensure board always fits with margin for HUD
+    // Provide generous headroom for top HUD and goal chips so they never overlap the board
     const boardW = cols + 1.2;
-    const boardH = rows + 1.8;
+    const boardH = rows + 3.0;
 
     let viewWidth: number;
     let viewHeight: number;
@@ -194,14 +209,17 @@ export class GameScene {
       viewHeight = viewWidth / aspect;
     }
 
+    // Offset camera slightly downward (-0.65) to shift the board down into comfortable play area
+    const offsetY = -0.65;
+
     this.camera.left = -viewWidth / 2;
     this.camera.right = viewWidth / 2;
-    this.camera.top = viewHeight / 2;
-    this.camera.bottom = -viewHeight / 2;
+    this.camera.top = viewHeight / 2 - offsetY;
+    this.camera.bottom = -viewHeight / 2 - offsetY;
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2));
   };
 
   private startLoop() {
@@ -222,6 +240,10 @@ export class GameScene {
   public destroy() {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
+    }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
     }
     window.removeEventListener('resize', this.onResize);
     this.onUpdateCallbacks = [];

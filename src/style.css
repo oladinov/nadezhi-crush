@@ -58,19 +58,50 @@ html, body {
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 12px 18px;
+  padding: 10px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(11, 15, 25, 0.85) 0%, rgba(11, 15, 25, 0) 100%);
+  background: linear-gradient(180deg, rgba(11, 15, 25, 0.9) 0%, rgba(11, 15, 25, 0) 100%);
 }
 
 .hud-panel {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   pointer-events: auto;
+}
+
+.hud-panel-left {
+  flex: 1;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.hud-panel-center {
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.hud-panel-right {
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.btn-settings {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-size: 1.25rem;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-settings:hover {
+  transform: rotate(45deg) scale(1.08);
+  border-color: rgba(56, 189, 248, 0.6);
 }
 
 .card-pill {
@@ -79,7 +110,7 @@ html, body {
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-card);
   border-radius: 9999px;
-  padding: 8px 16px;
+  padding: 6px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -89,6 +120,8 @@ html, body {
 .level-title-container {
   display: flex;
   flex-direction: column;
+  text-align: left;
+  max-width: 150px;
 }
 
 .level-badge {
@@ -241,10 +274,13 @@ html, body {
 /* GOALS BAR */
 .goals-container {
   position: absolute;
-  top: 74px;
+  top: 72px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 96vw;
   gap: 8px;
   z-index: 10;
   pointer-events: none;
@@ -1577,4 +1613,199 @@ html, body {
 .leaderboard-stat-item .stat-value.cyan {
   color: #38bdf8;
 }
+
+/* ==========================================
+   SETTINGS & PAUSE MODAL
+   ========================================== */
+.modal-settings-card {
+  max-width: 440px;
+  width: 92%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.modal-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 12px;
+}
+
+.modal-settings-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-section-card {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-section-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-sub-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.volume-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 4px 10px;
+}
+
+.settings-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.settings-full-btn {
+  justify-content: center;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.btn-restart-setting {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fca5a5;
+}
+
+.btn-restart-setting:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+/* ==========================================
+   MOBILE RESPONSIVENESS (< 600px)
+   ========================================== */
+@media (max-width: 600px) {
+  .hud-header {
+    padding: 6px 10px;
+  }
+
+  .card-pill {
+    padding: 4px 10px;
+    gap: 6px;
+  }
+
+  .level-title-container {
+    max-width: 105px;
+  }
+
+  .level-badge {
+    font-size: 0.65rem;
+  }
+
+  .level-name {
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .biome-name {
+    font-size: 0.65rem;
+    display: none;
+  }
+
+  .moves-val {
+    font-size: 1.4rem;
+  }
+
+  .score-badge {
+    min-width: 80px;
+  }
+
+  .score-val {
+    font-size: 1.05rem;
+  }
+
+  .btn-settings {
+    width: 38px;
+    height: 38px;
+    font-size: 1.15rem;
+  }
+
+  .goals-container {
+    top: 60px;
+    gap: 6px;
+  }
+
+  .goal-chip {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    gap: 6px;
+  }
+
+  .goal-chip-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .modal-card {
+    padding: 20px 16px;
+  }
+
+  .modal-settings-card {
+    padding: 18px 14px;
+    width: 95%;
+  }
+
+  .settings-section-card {
+    padding: 10px 12px;
+  }
+
+  .settings-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 

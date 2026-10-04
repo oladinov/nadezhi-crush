@@ -21,53 +21,33 @@
   <div id="app">
     <!-- TOP HUD -->
     <header class="hud-header">
-      <div class="hud-panel">
-        <button id="btn-levels" class="card-pill level-title-container" style="cursor: pointer; border: none;">
+      <div class="hud-panel hud-panel-left">
+        <button id="btn-levels" class="card-pill level-title-container" style="cursor: pointer; border: none;" title="Seleccionar Nivel">
           <span id="ui-level-badge" class="level-badge">Nivel 1</span>
           <span id="ui-level-name" class="level-name">Primeros Pasos ▾</span>
           <span id="ui-biome-name" class="biome-name">🌿 Praderas del Valle</span>
         </button>
       </div>
 
-      <div class="hud-panel">
+      <div class="hud-panel hud-panel-center">
         <div class="card-pill moves-badge">
           <div style="text-align: center;">
             <div id="ui-moves" class="moves-count">20</div>
             <div class="moves-label">Movimientos</div>
           </div>
         </div>
+      </div>
 
+      <div class="hud-panel hud-panel-right">
         <div class="card-pill score-badge">
           <div>
             <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Puntos</div>
             <div id="ui-score" class="score-val">0</div>
           </div>
         </div>
-      </div>
 
-      <div class="hud-panel">
-        <!-- VOLUME CONTROL -->
-        <div class="card-pill volume-control-pill">
-          <button id="btn-sound" class="btn-icon-subtle" title="Silenciar / Activar sonido">🔊</button>
-          <input type="range" id="volume-slider" min="0" max="100" value="70" class="volume-slider" title="Volumen" />
-          <span id="volume-val" class="volume-label">70%</span>
-        </div>
-
-        <!-- MUSIC CONTROLS (MUTE BGM INDEPENDENTLY & NEXT TRACK) -->
-        <button id="btn-music-toggle" class="btn-icon" title="Mutear / Activar Música (BGM)">🎵</button>
-        <button id="btn-music-next" class="btn-icon" title="Cambiar Canción (Siguiente Pista)">⏭️</button>
-
-        <!-- SKIN TOGGLE (EMOTES DEFAULT) -->
-        <button id="btn-skin" class="btn-icon" title="Cambiar Apariencia (Emotes / Gemas)">🎭</button>
-
-        <!-- RESTART LEVEL -->
-        <button id="btn-restart" class="btn-icon" title="Reiniciar Nivel">🔄</button>
-
-        <!-- HIGH SCORES & LEADERBOARD -->
-        <button id="btn-leaderboard" class="btn-icon" title="Récords y Salón de la Fama" aria-label="Récords y Salón de la Fama">🏆</button>
-
-        <!-- HELP & ABOUT -->
-        <button id="btn-help" class="btn-icon" title="Guía y Créditos">❓</button>
+        <!-- SETTINGS / PAUSE BUTTON -->
+        <button id="btn-settings" class="btn-icon btn-settings" title="Ajustes y Opciones">⚙️</button>
       </div>
     </header>
 
@@ -156,6 +136,84 @@
         </div>
         <div class="modal-actions">
           <button id="btn-modal-lose-retry" class="btn-primary">Reintentar Nivel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS & OPTIONS MODAL (PAUSE MENU) -->
+    <div id="modal-settings" class="modal-overlay">
+      <div class="modal-card modal-settings-card">
+        <div class="modal-settings-header">
+          <div class="modal-settings-title">
+            <span style="font-size: 1.8rem;">⚙️</span>
+            <div>
+              <h2 style="color: #ffffff; font-size: 1.35rem; font-weight: 900; line-height: 1.2; text-align: left;">Ajustes & Opciones</h2>
+              <span style="color: #94a3b8; font-size: 0.78rem; text-align: left; display: block;">Personaliza tu experiencia de juego</span>
+            </div>
+          </div>
+          <button id="btn-close-settings" class="modal-close-icon-btn" title="Cerrar">✕</button>
+        </div>
+
+        <div class="settings-sections-list">
+          <!-- AUDIO SECTION -->
+          <div class="settings-section-card">
+            <div class="settings-section-label">🔊 Audio & Música</div>
+            <div class="settings-row">
+              <span class="settings-sub-label">Volumen General</span>
+              <div class="volume-slider-wrap">
+                <button id="btn-sound" class="btn-icon-subtle" title="Silenciar / Activar sonido">🔊</button>
+                <input type="range" id="volume-slider" min="0" max="100" value="70" class="volume-slider" title="Volumen" />
+                <span id="volume-val" class="volume-label">70%</span>
+              </div>
+            </div>
+            <div class="settings-row">
+              <span class="settings-sub-label">Música de Fondo</span>
+              <div class="settings-btn-group">
+                <button id="btn-music-toggle" class="btn-pill btn-secondary" title="Silenciar / Activar Música (BGM)">
+                  🎵 Música Activa
+                </button>
+                <button id="btn-music-next" class="btn-icon" title="Cambiar Canción (Siguiente Pista)" style="width: 36px; height: 36px; font-size: 1rem;">
+                  ⏭️
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- APPEARANCE & GAMEPLAY -->
+          <div class="settings-section-card">
+            <div class="settings-section-label">🎨 Apariencia & Nivel</div>
+            <div class="settings-row">
+              <span class="settings-sub-label">Estilo de Gemas</span>
+              <button id="btn-skin" class="btn-pill btn-secondary" title="Cambiar Apariencia (Emotes / Gemas)">
+                🎭 Emotes
+              </button>
+            </div>
+            <div class="settings-row">
+              <span class="settings-sub-label">Partida Actual</span>
+              <button id="btn-restart" class="btn-pill btn-secondary btn-restart-setting" title="Reiniciar Nivel">
+                🔄 Reiniciar Nivel
+              </button>
+            </div>
+          </div>
+
+          <!-- PROGRESSION & HELP -->
+          <div class="settings-section-card">
+            <div class="settings-section-label">🏆 Progreso & Información</div>
+            <div class="settings-actions-grid">
+              <button id="btn-leaderboard" class="btn-pill btn-secondary settings-full-btn" title="Récords y Estrellas">
+                🏆 Récords & Estrellas
+              </button>
+              <button id="btn-help" class="btn-pill btn-secondary settings-full-btn" title="Guía y Créditos">
+                ❓ Guía & Créditos
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 14px;">
+          <button id="btn-continue-game" class="btn-primary" style="width: 100%; padding: 12px 24px; font-size: 0.95rem;">
+            ▶️ Continuar Jugando
+          </button>
         </div>
       </div>
     </div>
