@@ -6,7 +6,7 @@ import { CoreEngine } from '../src/core/resolver';
 import { findValidMoves } from '../src/core/moves';
 import { evaluateMatches } from '../src/core/patterns';
 import { Cell } from '../src/core/types';
-import { getLevelBiome } from '../src/game';
+import { getLevelBiome, getEmoteSetForLevel } from '../src/game';
 
 describe('Curated Levels', () => {
   it('has 20 curated levels with valid properties', () => {
@@ -98,5 +98,27 @@ describe('Bot Simulation and Infinite Generator', () => {
     expect(biome41.name).toBe('Tierras Infinitas');
     expect(biome41.icon).toBe('♾️');
     expect(biome41.image).toBe('/fantasy_infinite.jpg');
+    expect(biome41.emoteSetName).toBe('Tierras Infinitas');
+  });
+
+  it('assigns unique and complete emote sets for each biome without twitch logo', () => {
+    const allEmoteIcons = new Set<string>();
+
+    for (let lvl = 1; lvl <= 45; lvl++) {
+      const set = getEmoteSetForLevel(lvl);
+      expect(set.colors.length).toBe(5);
+
+      // Verify each slot corresponds to colors 0..4
+      for (let c = 0; c < 5; c++) {
+        expect(set.colors[c].color).toBe(c);
+        expect(set.colors[c].emoteIcon.startsWith('/emotes/')).toBe(true);
+        expect(set.colors[c].emoteIcon).not.toContain('875957811262152755'); // Twitch excluded
+        allEmoteIcons.add(set.colors[c].emoteIcon);
+      }
+    }
+
+    // All 35 emotes must be utilized across the game
+    expect(allEmoteIcons.size).toBe(35);
   });
 });
+

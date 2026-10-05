@@ -17,37 +17,28 @@ export type GameState =
   | 'LevelComplete'
   | 'LevelFailed';
 
-export interface ColorMeta {
-  color: GemColor;
-  emoteName: string;
-  emoteIcon: string;
-  jewelName: string;
-  jewelIcon: string;
-  colorHex: string;
-}
-
-export const COLOR_METADATA: ColorMeta[] = [
-  { color: 0, emoteName: 'Payasito', emoteIcon: '/emotes/1103355444124209192.webp', jewelName: 'Rubí', jewelIcon: '🔴', colorHex: '#ef4444' },
-  { color: 1, emoteName: 'Asustada', emoteIcon: '/emotes/1103355458179309619.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
-  { color: 2, emoteName: 'Gatito Amor', emoteIcon: '/emotes/1142187365251686491.webp', jewelName: 'Esmeralda', jewelIcon: '🟢', colorHex: '#10b981' },
-  { color: 3, emoteName: 'Gatito GG', emoteIcon: '/emotes/1536895951950577814.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
-  { color: 4, emoteName: 'Labure', emoteIcon: '/emotes/1536895958728835182.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
-];
+import { type ColorMeta, getEmoteSetForLevel, DEFAULT_COLOR_METADATA } from './levels/emotes';
+export type { ColorMeta };
+export { getEmoteSetForLevel, DEFAULT_COLOR_METADATA };
+export const COLOR_METADATA: ColorMeta[] = DEFAULT_COLOR_METADATA;
 
 export interface BiomeInfo {
   name: string;
   icon: string;
   image: string;
   desc: string;
+  emoteSetName?: string;
 }
 
 export function getLevelBiome(level: number): BiomeInfo {
+  const emoteSet = getEmoteSetForLevel(level);
   if (level <= 4) {
     return {
       name: 'Praderas del Valle',
       icon: '🌿',
       image: '/fantasy_plains.jpg',
       desc: 'Campos verdes y cielo despejado de la Comarca.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 8) {
     return {
@@ -55,6 +46,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '🌅',
       image: '/fantasy_sunset.jpg',
       desc: 'Luz dorada sobre pacíficas aldeas con chimeneas humeantes.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 12) {
     return {
@@ -62,6 +54,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '🔮',
       image: '/fantasy_cavern.jpg',
       desc: 'Profundidades ancestrales iluminadas por antorchas y gemas místicas.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 16) {
     return {
@@ -69,6 +62,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '🌲',
       image: '/fantasy_night.jpg',
       desc: 'Noche estrellada bajo las ramas del Gran Árbol sagrado.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 20) {
     return {
@@ -76,6 +70,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '🌋',
       image: '/fantasy_volcano.jpg',
       desc: 'Tierras volcánicas con ríos de fuego y desafíos ardientes.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 24) {
     return {
@@ -83,6 +78,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '⛏️',
       image: '/fantasy_erebor.jpg',
       desc: 'El más grande reino de la Tierra Media forjado bajo la Montaña Solitaria.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 28) {
     return {
@@ -90,6 +86,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '⚓',
       image: '/fantasy_numenor.jpg',
       desc: 'Majestuoso imperio marítimo de los Dúnedain sobre el gran océano.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 32) {
     return {
@@ -97,6 +94,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '🧚',
       image: '/fantasy_pixie.jpg',
       desc: 'El valle encantado de las hadas, flores gigantes y polvillo dorado.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 36) {
     return {
@@ -104,6 +102,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '🏴‍☠️',
       image: '/fantasy_neverland.jpg',
       desc: 'La mítica isla de piratas, lagunas de sirenas y eterna juventud.',
+      emoteSetName: emoteSet.name,
     };
   } else if (level <= 40) {
     return {
@@ -111,6 +110,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '🔮',
       image: '/fantasy_vesubio.jpg',
       desc: 'La misteriosa guarida volcánica y santuario arcano de Magica De Spell.',
+      emoteSetName: emoteSet.name,
     };
   } else {
     return {
@@ -118,6 +118,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       icon: '♾️',
       image: '/fantasy_infinite.jpg',
       desc: 'Islas celestiales flotantes y desafíos cósmicos infinitos.',
+      emoteSetName: emoteSet.name,
     };
   }
 }
@@ -220,7 +221,8 @@ export class Match3Game {
 
     // 2. Initialize Scene and View Systems (empty board grid is rendered)
     this.scene = new GameScene(this.container, config.rows, config.cols);
-    this.gemManager = new GemViewManager();
+    const emoteSet = getEmoteSetForLevel(levelNumber);
+    this.gemManager = new GemViewManager(emoteSet.colors.map((c) => c.emoteIcon));
     this.gemManager.setSkinMode(previousSkin);
     this.fx = new FXManager(this.scene);
     this.player = new TimelinePlayer(this.scene, this.gemManager, this.fx);
@@ -396,6 +398,11 @@ export class Match3Game {
     return track;
   }
 
+  public getColorMetadata(color: GemColor): ColorMeta {
+    const emoteSet = getEmoteSetForLevel(this.currentLevel);
+    return emoteSet.colors[color] || DEFAULT_COLOR_METADATA[color];
+  }
+
   public notifyUI(customScore?: number) {
     if (!this.onUIUpdateCallback) return;
 
@@ -418,7 +425,7 @@ export class Match3Game {
           target = g.target;
           break;
         case 'collect': {
-          const meta = COLOR_METADATA[g.color];
+          const meta = this.getColorMetadata(g.color);
           if (isEmotes) {
             desc = meta.emoteName;
             icon = meta.emoteIcon;
