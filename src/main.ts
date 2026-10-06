@@ -896,4 +896,82 @@ window.addEventListener('DOMContentLoaded', () => {
     modalHelp.classList.remove('active');
     showInstallBanner(true);
   });
+
+  // ==========================================
+  // TWITCH LIVE DETECTION & 1-PER-DAY IN-GAME ALERT
+  // ==========================================
+  const twitchLiveBanner = document.getElementById('twitch-live-banner');
+  const btnTwitchLiveClose = document.getElementById('btn-twitch-live-close');
+  const btnTwitchLiveWatch = document.getElementById('btn-twitch-live-watch');
+  const btnTwitchLiveDismiss = document.getElementById('btn-twitch-live-dismiss');
+  const dockLabel = document.getElementById('dock-label');
+  const dockPulseDot = document.getElementById('dock-pulse-dot');
+  const dockBtnTwitch = document.querySelector('.social-dock-btn.twitch');
+
+  const TWITCH_ALERT_KEY = 'nadezhi_twitch_alert_date';
+  const TWITCH_CHANNEL = 'nadezhi';
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  const dismissTwitchLiveBanner = () => {
+    if (twitchLiveBanner) {
+      twitchLiveBanner.style.display = 'none';
+    }
+    try {
+      localStorage.setItem(TWITCH_ALERT_KEY, Date.now().toString());
+    } catch {}
+  };
+
+  btnTwitchLiveClose?.addEventListener('click', dismissTwitchLiveBanner);
+  btnTwitchLiveDismiss?.addEventListener('click', dismissTwitchLiveBanner);
+  btnTwitchLiveWatch?.addEventListener('click', () => {
+    dismissTwitchLiveBanner();
+  });
+
+  const checkLiveStatus = async () => {
+    try {
+      const res = await fetch(`https://decapi.me/twitch/uptime/${TWITCH_CHANNEL}?_t=${Date.now()}`);
+      if (!res.ok) return;
+      const text = (await res.text()).trim().toLowerCase();
+
+      // If text contains "offline", "not live", "error", or "does not exist", channel is not live
+      const isLive =
+        text.length > 0 &&
+        !text.includes('offline') &&
+        !text.includes('not live') &&
+        !text.includes('error') &&
+        !text.includes('does not exist');
+
+      if (isLive) {
+        // 1. Highlight Floating Social Dock
+        socialDockPill?.classList.add('is-live');
+        if (dockLabel) dockLabel.textContent = '🔴 ¡EN VIVO!';
+        if (dockPulseDot) dockPulseDot.classList.add('is-live');
+        if (dockBtnTwitch) dockBtnTwitch.classList.add('is-live');
+
+        // 2. Prompt user maximum once per 24 hours
+        let lastPrompt = 0;
+        try {
+          lastPrompt = Number(localStorage.getItem(TWITCH_ALERT_KEY) || '0');
+        } catch {}
+
+        const canPromptToday = Date.now() - lastPrompt > ONE_DAY_MS;
+        if (canPromptToday && twitchLiveBanner) {
+          twitchLiveBanner.style.display = 'block';
+        }
+      } else {
+        // Offline: preserve normal dock appearance
+        socialDockPill?.classList.remove('is-live');
+        if (dockLabel) dockLabel.textContent = '💜 Streams';
+        if (dockPulseDot) dockPulseDot.classList.remove('is-live');
+        if (dockBtnTwitch) dockBtnTwitch.classList.remove('is-live');
+        if (twitchLiveBanner) twitchLiveBanner.style.display = 'none';
+      }
+    } catch {
+      // Graceful fallback on network error/offline
+    }
+  };
+
+  // Run initial check after 2.5s, then recheck every 4 minutes
+  setTimeout(checkLiveStatus, 2500);
+  setInterval(checkLiveStatus, 4 * 60 * 1000);
 });

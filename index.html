@@ -67,6 +67,32 @@
       <span id="toast-text">Música: Fiesta en la Comarca</span>
     </div>
 
+    <!-- TWITCH LIVE IN-GAME ALERT (1 VEZ AL DÍA) -->
+    <div id="twitch-live-banner" class="twitch-live-banner" style="display: none;">
+      <div class="twitch-live-card">
+        <button id="btn-twitch-live-close" class="twitch-live-close" title="Cerrar aviso">✕</button>
+        <div class="twitch-live-body">
+          <div class="twitch-live-badge-wrap">
+            <span class="twitch-live-pulsing-dot"></span>
+            <span class="twitch-live-badge">EN VIVO</span>
+          </div>
+          <div class="twitch-live-text">
+            <strong>¡Nadezhi está transmitiendo en directo!</strong>
+            <span>Pasa a saludar a la comunidad en Twitch</span>
+          </div>
+        </div>
+        <div class="twitch-live-actions">
+          <a href="https://www.twitch.tv/nadezhi" target="_blank" rel="noopener noreferrer" id="btn-twitch-live-watch" class="btn-live-watch">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+            <span>Ver Stream</span>
+          </a>
+          <button id="btn-twitch-live-dismiss" class="btn-live-dismiss">
+            Seguir jugando
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- PWA INSTALL PROMPT BANNER (ADD TO HOME SCREEN) -->
     <div id="pwa-install-banner" class="pwa-install-banner" style="display: none;">
       <div class="pwa-install-card">
@@ -100,8 +126,8 @@
     <!-- FLOATING CORNER SOCIAL DOCK (ACCESO DIRECTO A REDES) -->
     <aside id="social-dock" class="social-dock" aria-label="Canales y Redes de Nadezhi">
       <button id="social-dock-pill" class="social-dock-pill" title="Canales y Stream de Nadezhi • Clic para ver todos">
-        <span class="dock-pulse-dot"></span>
-        <span class="dock-label">💜 Streams</span>
+        <span class="dock-pulse-dot" id="dock-pulse-dot"></span>
+        <span class="dock-label" id="dock-label">💜 Streams</span>
       </button>
       <div class="social-dock-buttons" id="social-dock-buttons">
         <a href="https://www.twitch.tv/nadezhi" target="_blank" rel="noopener noreferrer" class="social-dock-btn twitch" title="Twitch: Transmisiones en vivo">
