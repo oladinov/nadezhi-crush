@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Gem, GemColor } from '../core/types';
+import { getAllEmotePaths } from '../levels/emotes';
 import { rainbowFragmentShader, rainbowVertexShader } from './shaders';
 
 export type GemSkinMode = 'jewels' | 'emotes';
@@ -91,6 +92,29 @@ export class GemViewManager {
     this.initJewelMaterials();
     this.initPlateMaterials();
     this.loadEmoteTextures(this.currentEmotePaths);
+    GemViewManager.preloadAllEmotes();
+  }
+
+  public static preloadAllEmotes() {
+    const loader = new THREE.TextureLoader();
+    for (const path of getAllEmotePaths()) {
+      if (!globalEmoteTextureCache.has(path)) {
+        loader.load(
+          path,
+          (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            globalEmoteTextureCache.set(path, tex);
+            const mat = globalEmoteMaterialCache.get(path);
+            if (mat) {
+              mat.map = tex;
+              mat.needsUpdate = true;
+            }
+          },
+          undefined,
+          () => {}
+        );
+      }
+    }
   }
 
   private createHaloTexture(): THREE.CanvasTexture {
@@ -536,7 +560,7 @@ export class GemViewManager {
   }
 
   public getMaterial(color: GemColor): THREE.MeshBasicMaterial {
-    if (this.skinMode === 'emotes' && this.currentEmoteMaterials[color]?.map) {
+    if (this.skinMode === 'emotes' && this.currentEmoteMaterials[color]) {
       return this.currentEmoteMaterials[color]!;
     }
     return this.jewelMaterials[color];

@@ -141,3 +141,14 @@ export function getEmoteSetForLevel(level: number): EmoteSet {
     return EMOTE_SETS.tierras_infinitas;
   }
 }
+
+export function getAllEmotePaths(): string[] {
+  const set = new Set<string>();
+  for (const group of Object.values(EMOTE_SETS)) {
+    for (const c of group.colors) {
+      set.add(c.emoteIcon);
+    }
+  }
+  return Array.from(set);
+}
+
