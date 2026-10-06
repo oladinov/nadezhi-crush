@@ -1847,4 +1847,477 @@ html, body {
   }
 }
 
+/* ========================================================
+   FLOATING CORNER SOCIAL DOCK (ACCESO DIRECTO A STREAM Y REDES)
+   ======================================================== */
+.social-dock {
+  position: absolute;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  z-index: 35;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(145, 70, 255, 0.15);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+.social-dock:hover {
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 18px rgba(145, 70, 255, 0.28);
+}
+
+.social-dock-pill {
+  background: rgba(145, 70, 255, 0.16);
+  border: 1px solid rgba(192, 132, 252, 0.3);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f1f5f9;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+}
+
+.social-dock-pill:hover {
+  background: rgba(145, 70, 255, 0.3);
+  border-color: rgba(192, 132, 252, 0.6);
+  transform: scale(1.03);
+}
+
+.dock-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: pulse-live 1.8s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-live {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+    box-shadow: 0 0 4px #ef4444;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+    box-shadow: 0 0 12px #ef4444, 0 0 18px rgba(239, 68, 68, 0.6);
+  }
+}
+
+.social-dock-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.social-dock-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+.social-dock-btn:hover {
+  transform: translateY(-2px) scale(1.15);
+  filter: brightness(1.18);
+}
+
+.social-dock-btn:active {
+  transform: translateY(0) scale(0.94);
+}
+
+.social-dock-btn.twitch {
+  background: #9146ff;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(145, 70, 255, 0.45);
+}
+
+.social-dock-btn.discord {
+  background: #5865f2;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(88, 101, 242, 0.45);
+}
+
+.social-dock-btn.tiktok {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.social-dock-btn.instagram {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(220, 39, 67, 0.35);
+}
+
+.social-dock-btn.kick {
+  background: #0d161d;
+  color: #53fc18;
+  border: 1px solid rgba(83, 252, 24, 0.4);
+  box-shadow: 0 2px 10px rgba(83, 252, 24, 0.2);
+}
+
+.social-dock-btn.all {
+  background: rgba(51, 65, 85, 0.85);
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.social-dock-btn.all:hover {
+  background: rgba(145, 70, 255, 0.4);
+  border-color: rgba(192, 132, 252, 0.6);
+}
+
+/* ========================================================
+   WIN MODAL COMMUNITY CARD (CELEBRACIÓN Y RETENCIÓN)
+   ======================================================== */
+.modal-win-community {
+  background: linear-gradient(135deg, rgba(145, 70, 255, 0.16), rgba(88, 101, 242, 0.14));
+  border: 1px solid rgba(192, 132, 252, 0.32);
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin: 12px 0 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.win-community-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.win-community-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.win-community-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.win-community-text strong {
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.win-community-text span {
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.win-community-btns {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-win-stream {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-win-stream:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+.btn-win-stream.twitch {
+  background: #9146ff;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(145, 70, 255, 0.4);
+}
+
+.btn-win-stream.discord {
+  background: #5865f2;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(88, 101, 242, 0.4);
+}
+
+/* ========================================================
+   COMMUNITY GRID & CARDS (GUÍA Y CRÉDITOS)
+   ======================================================== */
+.help-community-section {
+  background: linear-gradient(180deg, rgba(28, 20, 48, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%);
+  border-color: rgba(192, 132, 252, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.community-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.community-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-decoration: none;
+  color: #ffffff;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.community-card:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.12);
+}
+
+.comm-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.comm-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.comm-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.comm-card-name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.comm-card-sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comm-badge {
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.comm-badge.live {
+  background: rgba(239, 68, 68, 0.22);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.comm-badge.discord {
+  background: rgba(88, 101, 242, 0.22);
+  color: #a5b4fc;
+  border: 1px solid rgba(88, 101, 242, 0.4);
+}
+
+.comm-badge.tiktok {
+  background: rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+}
+
+.comm-badge.instagram {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+}
+
+.comm-badge.kick {
+  background: rgba(83, 252, 24, 0.16);
+  color: #86efac;
+}
+
+.comm-badge.youtube {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.comm-badge.facebook {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.comm-badge.x {
+  background: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+.comm-badge.threads {
+  background: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+/* Card color accents */
+.comm-twitch {
+  border-color: rgba(145, 70, 255, 0.35);
+}
+.comm-twitch .comm-card-icon {
+  background: rgba(145, 70, 255, 0.2);
+  color: #a855f7;
+}
+.comm-twitch:hover {
+  border-color: rgba(145, 70, 255, 0.7);
+  box-shadow: 0 8px 24px rgba(145, 70, 255, 0.25);
+}
+
+.comm-discord {
+  border-color: rgba(88, 101, 242, 0.35);
+}
+.comm-discord .comm-card-icon {
+  background: rgba(88, 101, 242, 0.2);
+  color: #818cf8;
+}
+.comm-discord:hover {
+  border-color: rgba(88, 101, 242, 0.7);
+  box-shadow: 0 8px 24px rgba(88, 101, 242, 0.25);
+}
+
+.comm-tiktok .comm-card-icon {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.comm-instagram {
+  border-color: rgba(225, 48, 108, 0.3);
+}
+.comm-instagram .comm-card-icon {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  color: #ffffff;
+}
+
+.comm-kick {
+  border-color: rgba(83, 252, 24, 0.25);
+}
+.comm-kick .comm-card-icon {
+  background: #0a1118;
+  color: #53fc18;
+  border: 1px solid rgba(83, 252, 24, 0.35);
+}
+
+.comm-youtube {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.comm-youtube .comm-card-icon {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.comm-facebook {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.comm-facebook .comm-card-icon {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.comm-x .comm-card-icon {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.comm-threads .comm-card-icon {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+.btn-settings-community {
+  background: linear-gradient(135deg, rgba(145, 70, 255, 0.25), rgba(88, 101, 242, 0.22)) !important;
+  border-color: rgba(192, 132, 252, 0.45) !important;
+  color: #ffffff !important;
+}
+
+.btn-settings-community:hover {
+  background: linear-gradient(135deg, rgba(145, 70, 255, 0.4), rgba(88, 101, 242, 0.38)) !important;
+  border-color: rgba(192, 132, 252, 0.75) !important;
+  box-shadow: 0 4px 16px rgba(145, 70, 255, 0.3);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 480px) {
+  .social-dock {
+    padding: 3px 5px;
+    gap: 4px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
+  }
+
+  .social-dock-pill {
+    padding: 3px 7px;
+    font-size: 0.7rem;
+  }
+
+  .social-dock-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .social-dock-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .community-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 

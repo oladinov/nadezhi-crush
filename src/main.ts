@@ -59,6 +59,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const modalWinScore = document.getElementById('modal-win-score')!;
   const modalWinStars = document.getElementById('modal-win-stars');
   const modalWinRecordBadge = document.getElementById('modal-win-record-badge');
+  const modalWinCommunity = document.getElementById('modal-win-community');
+  const winCommunityTitle = document.getElementById('win-community-title');
+  const winCommunityDesc = document.getElementById('win-community-desc');
   const btnModalReplay = document.getElementById('btn-modal-replay')!;
   const btnModalNext = document.getElementById('btn-modal-next')!;
 
@@ -244,6 +247,29 @@ window.addEventListener('DOMContentLoaded', () => {
           ui.biome.icon
         );
         renderWinStarsAndBadges(res);
+
+        // Discrete community promo card: only on milestone levels (Level 1, end of biomes, or top ranking)
+        if (modalWinCommunity) {
+          const isBiomeClimax = ui.level % 4 === 0;
+          const isIntroLevel = ui.level === 1;
+          const isEpicAchievement = res.rankInHallOfFame !== null && res.rankInHallOfFame <= 5;
+
+          if (isIntroLevel) {
+            modalWinCommunity.style.display = 'flex';
+            if (winCommunityTitle) winCommunityTitle.textContent = '🎉 ¡Bienvenido a Tierras de Fantasía!';
+            if (winCommunityDesc) winCommunityDesc.textContent = '¡Acompaña a Nadezhi en vivo y únete a su comunidad!';
+          } else if (isBiomeClimax) {
+            modalWinCommunity.style.display = 'flex';
+            if (winCommunityTitle) winCommunityTitle.textContent = `🌿 ¡Región superada! (${ui.biome.name})`;
+            if (winCommunityDesc) winCommunityDesc.textContent = 'Celebra tu victoria en el stream y servidor de Nadezhi:';
+          } else if (isEpicAchievement) {
+            modalWinCommunity.style.display = 'flex';
+            if (winCommunityTitle) winCommunityTitle.textContent = '👑 ¡Récord Legendario en el Salón de la Fama!';
+            if (winCommunityDesc) winCommunityDesc.textContent = '¡Presume tu puntuación con Nadezhi en vivo y Discord!';
+          } else {
+            modalWinCommunity.style.display = 'none';
+          }
+        }
       }
 
       modalWin.classList.add('active');
@@ -742,6 +768,37 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   btnCloseHelp.addEventListener('click', () => {
     modalHelp.classList.remove('active');
+  });
+
+  // Community Hub opener (scrolls to Nadezhi channels section)
+  const openCommunityHub = () => {
+    closeSettings();
+    modalHelp.classList.add('active');
+    setTimeout(() => {
+      const commSection = document.querySelector('.help-community-section');
+      if (commSection) {
+        commSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+  };
+
+  const btnCommunitySettings = document.getElementById('btn-community-settings');
+  const socialDockPill = document.getElementById('social-dock-pill');
+  const btnDockAll = document.getElementById('btn-dock-all');
+
+  btnCommunitySettings?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCommunityHub();
+  });
+
+  socialDockPill?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCommunityHub();
+  });
+
+  btnDockAll?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCommunityHub();
   });
 
   // ==========================================
