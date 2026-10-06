@@ -9,6 +9,7 @@ export interface GemView {
   gem: Gem;
   group: THREE.Group;
   mesh: THREE.Mesh;
+  plateMesh?: THREE.Mesh;
   halo?: THREE.Sprite;
   tier2Ring?: THREE.Mesh;
   sparks?: THREE.Points;
@@ -22,6 +23,7 @@ export interface GemView {
 
 // Global module-level caches to prevent texture reloading, race conditions, or fallback overwriting
 let globalJewelMaterials: THREE.MeshBasicMaterial[] | null = null;
+let globalPlateMaterials: THREE.MeshBasicMaterial[] | null = null;
 const globalEmoteTextureCache = new Map<string, THREE.Texture>();
 const globalEmoteMaterialCache = new Map<string, THREE.MeshBasicMaterial>();
 let globalHaloTexture: THREE.CanvasTexture | null = null;
@@ -40,6 +42,7 @@ export const DEFAULT_EMOTE_PATHS = [
 
 export class GemViewManager {
   private gemPlaneGeo: THREE.PlaneGeometry;
+  private platePlaneGeo: THREE.PlaneGeometry;
   private rainbowGeo: THREE.IcosahedronGeometry;
   private ringGeo: THREE.RingGeometry;
   private haloTexture: THREE.CanvasTexture;
@@ -48,6 +51,7 @@ export class GemViewManager {
   private rainbowAuraTexture: THREE.CanvasTexture;
   private starGlintTexture: THREE.CanvasTexture;
   private jewelMaterials: THREE.MeshBasicMaterial[] = [];
+  private plateMaterials: THREE.MeshBasicMaterial[] = [];
   public skinMode: GemSkinMode = 'emotes';
   private currentEmotePaths: string[] = [...DEFAULT_EMOTE_PATHS];
   private currentEmoteMaterials: (THREE.MeshBasicMaterial | null)[] = [null, null, null, null, null];
@@ -59,6 +63,7 @@ export class GemViewManager {
 
   constructor(initialEmotePaths?: string[]) {
     this.gemPlaneGeo = new THREE.PlaneGeometry(0.84, 0.84);
+    this.platePlaneGeo = new THREE.PlaneGeometry(0.88, 0.88);
     this.rainbowGeo = new THREE.IcosahedronGeometry(0.38, 1);
     this.ringGeo = new THREE.RingGeometry(0.44, 0.52, 24);
 
@@ -84,6 +89,7 @@ export class GemViewManager {
     this.starGlintTexture = globalStarTexture;
 
     this.initJewelMaterials();
+    this.initPlateMaterials();
     this.loadEmoteTextures(this.currentEmotePaths);
   }
 
@@ -264,6 +270,21 @@ export class GemViewManager {
     this.jewelMaterials = globalJewelMaterials;
   }
 
+  private initPlateMaterials() {
+    if (!globalPlateMaterials) {
+      globalPlateMaterials = [];
+      for (let c = 0; c < 5; c++) {
+        const texture = this.createEmotePlateTexture(c as GemColor);
+        const mat = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+        });
+        globalPlateMaterials.push(mat);
+      }
+    }
+    this.plateMaterials = globalPlateMaterials;
+  }
+
   public setEmotePaths(paths: string[]) {
     if (!paths || paths.length !== 5) return;
     this.currentEmotePaths = [...paths];
@@ -313,6 +334,10 @@ export class GemViewManager {
       for (const view of this.views.values()) {
         if (view.gem.kind !== 'rainbow') {
           view.mesh.material = this.getMaterial(view.gem.color);
+          if (view.plateMesh) {
+            view.plateMesh.visible = true;
+            view.plateMesh.material = this.plateMaterials[view.gem.color];
+          }
         }
       }
     }
@@ -414,6 +439,102 @@ export class GemViewManager {
     return texture;
   }
 
+  private createEmotePlateTexture(color: GemColor): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+
+    const baseHexes = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
+    const lightHexes = ['#fca5a5', '#93c5fd', '#6ee7b7', '#fde68a', '#d8b4fe'];
+    const midLightHexes = ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#c084fc'];
+    const darkHexes = ['#991b1b', '#1d4ed8', '#047857', '#b45309', '#6b21a8'];
+    const deepHexes = ['#450a0a', '#172554', '#022c22', '#451a03', '#3b0764'];
+
+    ctx.clearRect(0, 0, 256, 256);
+
+    const pad = 12;
+    const size = 256 - pad * 2;
+    const radius = 48;
+
+    const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    };
+
+    // 1. Soft Drop Shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 8;
+    drawRoundedRect(pad, pad, size, size, radius);
+    ctx.fillStyle = '#000000';
+    ctx.fill();
+    ctx.restore();
+
+    // 2. Outer 3D Dark Bevel Edge
+    drawRoundedRect(pad, pad, size, size, radius);
+    ctx.fillStyle = deepHexes[color];
+    ctx.fill();
+
+    // 3. Main Juicy Gradient Body
+    const innerPad = pad + 3;
+    const innerSize = size - 6;
+    const innerRadius = radius - 3;
+    drawRoundedRect(innerPad, innerPad, innerSize, innerSize, innerRadius);
+    const bodyGrad = ctx.createLinearGradient(128, innerPad, 128, innerPad + innerSize);
+    bodyGrad.addColorStop(0, midLightHexes[color]);
+    bodyGrad.addColorStop(0.35, baseHexes[color]);
+    bodyGrad.addColorStop(1, darkHexes[color]);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+
+    // 4. Subtle Inner Radial Glow (adds gem-like center radiance)
+    ctx.save();
+    drawRoundedRect(innerPad, innerPad, innerSize, innerSize, innerRadius);
+    ctx.clip();
+    const radGlow = ctx.createRadialGradient(128, 110, 10, 128, 120, 100);
+    radGlow.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+    radGlow.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
+    radGlow.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+    ctx.fillStyle = radGlow;
+    ctx.fill();
+    ctx.restore();
+
+    // 5. Glossy Top Highlight (curved glass dome effect)
+    ctx.save();
+    drawRoundedRect(innerPad, innerPad, innerSize, innerSize, innerRadius);
+    ctx.clip();
+    ctx.beginPath();
+    ctx.ellipse(128, innerPad + 28, innerSize * 0.46, innerSize * 0.28, 0, 0, Math.PI * 2);
+    const glossGrad = ctx.createLinearGradient(128, innerPad, 128, innerPad + 56);
+    glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.65)');
+    glossGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.25)');
+    glossGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = glossGrad;
+    ctx.fill();
+    ctx.restore();
+
+    // 6. Crisp Inner Rim Highlight
+    drawRoundedRect(innerPad + 2, innerPad + 2, innerSize - 4, innerSize - 4, innerRadius - 2);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = lightHexes[color];
+    ctx.stroke();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
   public getMaterial(color: GemColor): THREE.MeshBasicMaterial {
     if (this.skinMode === 'emotes' && this.currentEmoteMaterials[color]?.map) {
       return this.currentEmoteMaterials[color]!;
@@ -424,6 +545,7 @@ export class GemViewManager {
   public createGemView(gem: Gem): GemView {
     const group = new THREE.Group();
     let mesh: THREE.Mesh;
+    let plateMesh: THREE.Mesh | undefined;
     let halo: THREE.Sprite | undefined;
     let tier2Ring: THREE.Mesh | undefined;
     let sparks: THREE.Points | undefined;
@@ -475,8 +597,24 @@ export class GemViewManager {
       group.add(mesh);
     } else {
       // Normal or Bomb
+      const isEmotes = this.skinMode === 'emotes';
       const mat = this.getMaterial(gem.color);
+
+      // 1. Base vibrant colored plate (visible in emote skin mode)
+      plateMesh = new THREE.Mesh(this.platePlaneGeo, this.plateMaterials[gem.color]);
+      plateMesh.position.set(0, 0, 0);
+      plateMesh.visible = isEmotes;
+      group.add(plateMesh);
+
+      // 2. Character emote or classic jewel mesh
       mesh = new THREE.Mesh(this.gemPlaneGeo, mat);
+      if (isEmotes) {
+        mesh.scale.set(0.78, 0.78, 1);
+        mesh.position.set(0, 0, 0.02);
+      } else {
+        mesh.scale.set(1.0, 1.0, 1);
+        mesh.position.set(0, 0, 0);
+      }
       group.add(mesh);
 
       if (gem.kind === 'bomb') {
@@ -551,6 +689,7 @@ export class GemViewManager {
       gem,
       group,
       mesh,
+      plateMesh,
       halo,
       tier2Ring,
       sparks,
@@ -685,15 +824,28 @@ export class GemViewManager {
   public destroy() {
     this.clearAll();
     this.gemPlaneGeo.dispose();
+    this.platePlaneGeo.dispose();
     this.rainbowGeo.dispose();
     this.ringGeo.dispose();
   }
 
   public setSkinMode(mode: GemSkinMode) {
     this.skinMode = mode;
+    const isEmotes = mode === 'emotes';
     for (const view of this.views.values()) {
       if (view.gem.kind !== 'rainbow') {
         view.mesh.material = this.getMaterial(view.gem.color);
+        if (view.plateMesh) {
+          view.plateMesh.visible = isEmotes;
+          view.plateMesh.material = this.plateMaterials[view.gem.color];
+        }
+        if (isEmotes) {
+          view.mesh.scale.set(0.78, 0.78, 1);
+          view.mesh.position.set(0, 0, 0.02);
+        } else {
+          view.mesh.scale.set(1.0, 1.0, 1);
+          view.mesh.position.set(0, 0, 0);
+        }
       }
     }
   }

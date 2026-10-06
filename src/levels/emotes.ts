@@ -32,25 +32,25 @@ export const EMOTE_SETS: Record<string, EmoteSet> = {
   show_palomitas: {
     id: 'show_palomitas',
     name: 'Show y Palomitas',
-    description: 'Colinas del Atardecer - Fiesta, snacks y diversión en la aldea',
+    description: 'Colinas del Atardecer - Fiesta, snacks, gato meme y lentes oscuros',
     colors: [
       { color: 0, emoteName: 'Moogle Palomitas', emoteIcon: '/emotes/1536895956312653894.webp', jewelName: 'Rubí', jewelIcon: '🔴', colorHex: '#ef4444' },
       { color: 1, emoteName: 'Moogle Ojos Saltones', emoteIcon: '/emotes/1183152273665302528.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
       { color: 2, emoteName: 'Moogle Tostada', emoteIcon: '/emotes/1115081802701357156.webp', jewelName: 'Esmeralda', jewelIcon: '🟢', colorHex: '#10b981' },
-      { color: 3, emoteName: 'Moogle Espía', emoteIcon: '/emotes/1536895957143130132.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
-      { color: 4, emoteName: 'Moogle Fan Idol', emoteIcon: '/emotes/1536895949144592514.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
+      { color: 3, emoteName: 'Gato Bostezo', emoteIcon: '/emotes/1290841162990485514.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
+      { color: 4, emoteName: 'Moogle Gafas de Sol', emoteIcon: '/emotes/1115037240410775582.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
     ],
   },
   ciudadela_arcana: {
     id: 'ciudadela_arcana',
     name: 'La Ciudadela Arcana',
-    description: 'Caverna de Cristales y Monte Vesubio - Juicio, respuestas y determinación',
+    description: 'Caverna de Cristales y Monte Vesubio - Juicio, cristales y determinación',
     colors: [
       { color: 0, emoteName: 'Nadezhi Furia', emoteIcon: '/emotes/1149873070371254272.webp', jewelName: 'Rubí', jewelIcon: '🔴', colorHex: '#ef4444' },
       { color: 1, emoteName: 'Moogle Berrinche', emoteIcon: '/emotes/1290811068268154910.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
       { color: 2, emoteName: 'Moogle NO', emoteIcon: '/emotes/1115076404074262648.webp', jewelName: 'Esmeralda', jewelIcon: '🟢', colorHex: '#10b981' },
-      { color: 3, emoteName: 'Moogle RAID', emoteIcon: '/emotes/1536895953632632842.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
-      { color: 4, emoteName: 'Moogle YES', emoteIcon: '/emotes/1536895958007283712.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
+      { color: 3, emoteName: 'Moogle Estrellas', emoteIcon: '/emotes/1149873071902171167.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
+      { color: 4, emoteName: 'Moogle Ojos Violetas', emoteIcon: '/emotes/1183152278698479656.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
     ],
   },
   noche_magica: {
@@ -61,8 +61,8 @@ export const EMOTE_SETS: Record<string, EmoteSet> = {
       { color: 0, emoteName: 'Moogle Amor', emoteIcon: '/emotes/1142187365251686491.webp', jewelName: 'Rubí', jewelIcon: '🔴', colorHex: '#ef4444' },
       { color: 1, emoteName: 'Moogle Alivio', emoteIcon: '/emotes/1258498543916683327.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
       { color: 2, emoteName: 'Moogle Risita', emoteIcon: '/emotes/1536895949941637201.webp', jewelName: 'Esmeralda', jewelIcon: '🟢', colorHex: '#10b981' },
-      { color: 3, emoteName: 'Moogle Estrellas', emoteIcon: '/emotes/1149873071902171167.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
-      { color: 4, emoteName: 'Moogle Ojos Violetas', emoteIcon: '/emotes/1183152278698479656.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
+      { color: 3, emoteName: 'Moogle Espía', emoteIcon: '/emotes/1536895957143130132.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
+      { color: 4, emoteName: 'Moogle YES', emoteIcon: '/emotes/1536895958007283712.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
     ],
   },
   forja_volcan: {
@@ -71,7 +71,7 @@ export const EMOTE_SETS: Record<string, EmoteSet> = {
     description: 'Monte del Destino y Erebor - Tensión ardiente, estrés y combate épico',
     colors: [
       { color: 0, emoteName: 'Moogle Furioso', emoteIcon: '/emotes/1536895945659256975.webp', jewelName: 'Rubí', jewelIcon: '🔴', colorHex: '#ef4444' },
-      { color: 1, emoteName: 'Moogle Pánico', emoteIcon: '/emotes/1115115603628392578.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
+      { color: 1, emoteName: 'Moogle Gulag', emoteIcon: '/emotes/1187942067784130670.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
       { color: 2, emoteName: 'Moogle Ebrio', emoteIcon: '/emotes/1150642794990403594.webp', jewelName: 'Esmeralda', jewelIcon: '🟢', colorHex: '#10b981' },
       { color: 3, emoteName: 'Moogle Mareado', emoteIcon: '/emotes/1536895960461086830.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
       { color: 4, emoteName: 'Moogle K.O.', emoteIcon: '/emotes/1536895952793636944.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
@@ -80,13 +80,13 @@ export const EMOTE_SETS: Record<string, EmoteSet> = {
   travesia_corsaria: {
     id: 'travesia_corsaria',
     name: 'Travesía Corsaria',
-    description: 'Númenórë y Nunca Jamás - Memes piratas, armas y humor de alta mar',
+    description: 'Númenórë y Nunca Jamás - Memes piratas, armas y asaltos',
     colors: [
       { color: 0, emoteName: 'Moogle Pistola', emoteIcon: '/emotes/1149873066608951326.webp', jewelName: 'Rubí', jewelIcon: '🔴', colorHex: '#ef4444' },
-      { color: 1, emoteName: 'Moogle Gulag', emoteIcon: '/emotes/1187942067784130670.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
+      { color: 1, emoteName: 'Moogle Pánico', emoteIcon: '/emotes/1115115603628392578.webp', jewelName: 'Zafiro', jewelIcon: '🔷', colorHex: '#3b82f6' },
       { color: 2, emoteName: 'Periódico Meme', emoteIcon: '/emotes/1217259343351779458.webp', jewelName: 'Esmeralda', jewelIcon: '🟢', colorHex: '#10b981' },
-      { color: 3, emoteName: 'Gato Bostezo', emoteIcon: '/emotes/1290841162990485514.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
-      { color: 4, emoteName: 'Moogle Gafas de Sol', emoteIcon: '/emotes/1115037240410775582.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
+      { color: 3, emoteName: 'Moogle RAID', emoteIcon: '/emotes/1536895953632632842.webp', jewelName: 'Topacio', jewelIcon: '🟡', colorHex: '#f59e0b' },
+      { color: 4, emoteName: 'Moogle Fan Idol', emoteIcon: '/emotes/1536895949144592514.webp', jewelName: 'Amatista', jewelIcon: '🟣', colorHex: '#a855f7' },
     ],
   },
   tierras_infinitas: {
