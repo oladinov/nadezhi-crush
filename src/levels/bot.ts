@@ -1,9 +1,11 @@
 import { CoreEngine } from '../core/resolver';
 import { Board, Cell, LevelConfig } from '../core/types';
 import { cloneBoard } from '../core/board';
+import { hashString } from '../core/rng';
 
 export interface BotSimulationOptions {
-  seed: number;
+  seed?: number;
+  level?: number;
   moves: number;
   colors?: 4 | 5;
   rows?: number;
@@ -29,16 +31,24 @@ export function simulateGreedy(opts: BotSimulationOptions): BotSimulationResult 
   const colors = opts.colors ?? 5;
   const totalMoves = opts.moves;
 
-  const cacheKey = `${opts.seed}:${totalMoves}:${colors}:${rows}:${cols}`;
+  const cacheKey =
+    opts.level !== undefined
+      ? `lvl:${opts.level}:${totalMoves}:${colors}:${rows}:${cols}`
+      : `${opts.seed}:${totalMoves}:${colors}:${rows}:${cols}`;
   const cached = botCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
+  const levelNum = opts.level ?? 99999;
+  const seedNum = opts.seed ?? hashString(`level_${levelNum}`);
+  // If opts.level is provided, leave seedKey undefined so BoardRngManager uses `level_${level}` matching player
+  const seedKeyVal = opts.level !== undefined ? undefined : seedNum;
+
   const config: LevelConfig = {
-    level: 99999,
-    seed: opts.seed,
-    seedKey: opts.seed,
+    level: levelNum,
+    seed: seedNum,
+    seedKey: seedKeyVal,
     rows,
     cols,
     colors,
@@ -59,9 +69,9 @@ export function simulateGreedy(opts: BotSimulationOptions): BotSimulationResult 
     for (const move of validMoves) {
       // Simulate move by creating a test engine matching current state
       const simConfig: LevelConfig = {
-        level: 99999,
-        seed: opts.seed,
-        seedKey: opts.seed,
+        level: levelNum,
+        seed: seedNum,
+        seedKey: seedKeyVal,
         rows,
         cols,
         colors,

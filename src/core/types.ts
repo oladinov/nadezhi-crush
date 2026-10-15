@@ -53,8 +53,8 @@ export type DetonateTrigger =
   | { type: 'fusion' };
 
 export type Step =
-  | { type: 'swap'; a: Cell; b: Cell; valid: boolean }
-  | { type: 'transform'; cells: Cell[]; to: Gem[] } // arcoíris+bomba
+  | { type: 'swap'; a: Cell; b: Cell; valid: boolean; scoreAfter?: number }
+  | { type: 'transform'; cells: Cell[]; to: Gem[]; scoreAfter?: number } // arcoíris+bomba
   | {
       type: 'clear';
       cells: { cell: Cell; gem: Gem; wave: number; points?: number }[];
@@ -63,6 +63,7 @@ export type Step =
       points: number;
       isBlackHole?: boolean;
       vortexCenter?: Cell;
+      scoreAfter?: number;
     }
   | {
       type: 'detonate';
@@ -73,22 +74,25 @@ export type Step =
       trigger?: DetonateTrigger;
       points?: number;
       isCrossBlast?: boolean;
+      scoreAfter?: number;
     }
-  | { type: 'spawnSpecial'; cell: Cell; gem: Gem; from: Cell[] }
-  | { type: 'gravity'; moves: { id: number; from: Cell; to: Cell }[] }
-  | { type: 'refill'; spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[] }
-  | { type: 'shuffle'; moves: { id: number; from: Cell; to: Cell }[] }
+  | { type: 'spawnSpecial'; cell: Cell; gem: Gem; from: Cell[]; scoreAfter?: number }
+  | { type: 'gravity'; moves: { id: number; from: Cell; to: Cell }[]; scoreAfter?: number }
+  | { type: 'refill'; spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[]; scoreAfter?: number }
+  | { type: 'shuffle'; moves: { id: number; from: Cell; to: Cell }[]; scoreAfter?: number }
   | {
       type: 'combo';
       cascade: number;
       title: string;
       tier: number;
       points: number;
+      scoreAfter?: number;
     }
   | {
       type: 'boardClear';
       title: string;
       points: number;
+      scoreAfter?: number;
     };
 
 export interface TurnResult {

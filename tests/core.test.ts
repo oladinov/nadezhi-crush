@@ -555,6 +555,46 @@ describe('Bomb Matching and Detonate Triggers', () => {
       expect(boardClearStep.title.length).toBeGreaterThan(0);
     }
   });
+
+  it('stamps scoreAfter on steps to guarantee absolute score synchronization with zero UI drops', () => {
+    const config: LevelConfig = {
+      level: 65,
+      seed: 42,
+      rows: 8,
+      cols: 8,
+      colors: 5,
+      moves: 20,
+      goals: [{ type: 'score' as const, target: 50000 }],
+    };
+
+    const engine = new CoreEngine(config);
+    const board = engine.getBoard();
+    board[3][3] = { id: 991, kind: 'rainbow' };
+    board[3][4] = { id: 992, kind: 'rainbow' };
+
+    const initialScore = engine.progress.score;
+    const result = engine.resolveMove({ r: 3, c: 3 }, { r: 3, c: 4 });
+    expect(result.accepted).toBe(true);
+
+    // Track scoreAfter values received by UI
+    const scoresReported: number[] = [];
+    for (const step of result.steps) {
+      if (step.scoreAfter !== undefined) {
+        scoresReported.push(step.scoreAfter);
+      }
+    }
+
+    expect(scoresReported.length).toBeGreaterThan(0);
+    // Score updates must be strictly monotonic non-decreasing (never drop)
+    for (let i = 1; i < scoresReported.length; i++) {
+      expect(scoresReported[i]).toBeGreaterThanOrEqual(scoresReported[i - 1]);
+    }
+
+    // The final step score update received by UI matches engine.progress.score exactly (no ghost drops)
+    const finalReportedScore = scoresReported[scoresReported.length - 1];
+    expect(finalReportedScore).toBe(engine.progress.score);
+    expect(finalReportedScore).toBe(initialScore + result.pointsGained);
+  });
 });
 
 

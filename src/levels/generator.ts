@@ -100,7 +100,7 @@ export function generateLevel(level: number, calib: CalibrationData = DEFAULT_CA
   const rng = new Mulberry32(hashString(`gen_${level}`));
   const moves = Math.max(14, 25 - Math.floor(n / 6)); // margen decreciente
   const k = Math.min(1.3, 0.8 + 0.012 * n) - (level % 10 === 0 ? 0.15 : 0); // meseta cada 10
-  const bot = simulateGreedy({ seed, moves, colors: 5 }).score; // determinista por nivel
+  const bot = simulateGreedy({ level, seed, moves, colors: 5 }).score; // determinista por nivel
   const par = 0.5 * calib.perMove * moves + 0.5 * bot; // mezcla: estabiliza cascadas afortunadas
   const target = Math.round((par * k) / 500) * 500;
 

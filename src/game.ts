@@ -280,24 +280,15 @@ export class Match3Game {
       // Core resolves entire turn synchronously and deterministically
       const result: TurnResult = this.core.resolveMove(a, b);
 
-      // Running score for real-time HUD updates on each cascade wave
-      let displayedScore = this.core.progress.score - result.pointsGained;
-
-      // View replays steps asynchronously with GSAP and real-time score increments
+      // View replays steps asynchronously with GSAP and real-time score updates directly from CoreEngine
       await this.player.play(result.steps, this.core.snapshot, (step) => {
-        if (step.type === 'clear' || step.type === 'boardClear') {
-          displayedScore += step.points;
-          this.notifyUI(displayedScore);
-        } else if (step.type === 'combo') {
-          displayedScore += step.points;
-          this.notifyUI(displayedScore);
-        } else if (step.type === 'detonate' && step.points) {
-          displayedScore += step.points;
-          this.notifyUI(displayedScore);
+        if (step.scoreAfter !== undefined) {
+          this.notifyUI(step.scoreAfter);
         }
       });
 
       if (result.outcome === 'won') {
+        this.notifyUI(this.core.progress.score);
         this.state = 'LevelComplete';
         this.maxLevel = Math.max(this.maxLevel, this.currentLevel + 1);
         try {

@@ -190,6 +190,7 @@ export class CoreEngine implements GridCore {
             title: combo.title,
             tier: combo.tier,
             points: combo.points,
+            scoreAfter: this.progress.score,
           });
         }
         this.resolveWave(matches, cascade, steps);
@@ -257,6 +258,7 @@ export class CoreEngine implements GridCore {
         trigger: { type: 'fusion' },
         points: SPECIAL_POINTS.bombBombFusion,
         isCrossBlast: true,
+        scoreAfter: this.progress.score,
       });
 
       const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
@@ -491,6 +493,7 @@ export class CoreEngine implements GridCore {
           title: combo.title,
           tier: combo.tier,
           points: combo.points,
+          scoreAfter: this.progress.score,
         });
       }
       this.resolveWave(matches, cascade, steps);
@@ -607,6 +610,7 @@ export class CoreEngine implements GridCore {
           wave: act.wave,
           trigger: act.trigger,
           points: pts,
+          scoreAfter: this.progress.score,
         });
 
         toClearMap.set(`${act.cell.r},${act.cell.c}`, {
@@ -751,6 +755,7 @@ export class CoreEngine implements GridCore {
       points: wavePoints,
       isBlackHole,
       vortexCenter,
+      scoreAfter: this.progress.score,
     });
 
     // Check if the board has been completely cleared (Full Board Clear / Tablero Limpio)
@@ -762,6 +767,7 @@ export class CoreEngine implements GridCore {
         type: 'boardClear',
         title: phrase,
         points: bonusPoints,
+        scoreAfter: this.progress.score,
       });
     }
   }

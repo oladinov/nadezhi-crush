@@ -120,5 +120,17 @@ describe('Bot Simulation and Infinite Generator', () => {
     // All 35 emotes must be utilized across the game
     expect(allEmoteIcons.size).toBe(35);
   });
+
+  it('calibrates Level 65 using identical level seed without outlier disparity', () => {
+    const lvl65 = generateLevel(65);
+    expect(lvl65.level).toBe(65);
+    expect(lvl65.moves).toBe(18);
+    // Goals target naturally reflects true bot performance on level_65:init (23,000 pts)
+    const scoreGoal = lvl65.goals.find((g) => g.type === 'score');
+    expect(scoreGoal).toBeDefined();
+    if (scoreGoal && scoreGoal.type === 'score') {
+      expect(scoreGoal.target).toBe(23000);
+    }
+  });
 });
 
