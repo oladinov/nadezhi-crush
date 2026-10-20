@@ -53,8 +53,8 @@ export type DetonateTrigger =
   | { type: 'fusion' };
 
 export type Step =
-  | { type: 'swap'; a: Cell; b: Cell; valid: boolean; scoreAfter?: number }
-  | { type: 'transform'; cells: Cell[]; to: Gem[]; scoreAfter?: number } // arcoíris+bomba
+  | { type: 'swap'; a: Cell; b: Cell; valid: boolean; scoreAfter?: number; progressAfter?: GoalProgress }
+  | { type: 'transform'; cells: Cell[]; to: Gem[]; scoreAfter?: number; progressAfter?: GoalProgress } // arcoíris+bomba
   | {
       type: 'clear';
       cells: { cell: Cell; gem: Gem; wave: number; points?: number }[];
@@ -64,6 +64,7 @@ export type Step =
       isBlackHole?: boolean;
       vortexCenter?: Cell;
       scoreAfter?: number;
+      progressAfter?: GoalProgress;
     }
   | {
       type: 'detonate';
@@ -75,11 +76,12 @@ export type Step =
       points?: number;
       isCrossBlast?: boolean;
       scoreAfter?: number;
+      progressAfter?: GoalProgress;
     }
-  | { type: 'spawnSpecial'; cell: Cell; gem: Gem; from: Cell[]; scoreAfter?: number }
-  | { type: 'gravity'; moves: { id: number; from: Cell; to: Cell }[]; scoreAfter?: number }
-  | { type: 'refill'; spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[]; scoreAfter?: number }
-  | { type: 'shuffle'; moves: { id: number; from: Cell; to: Cell }[]; scoreAfter?: number }
+  | { type: 'spawnSpecial'; cell: Cell; gem: Gem; from: Cell[]; scoreAfter?: number; progressAfter?: GoalProgress }
+  | { type: 'gravity'; moves: { id: number; from: Cell; to: Cell }[]; scoreAfter?: number; progressAfter?: GoalProgress }
+  | { type: 'refill'; spawns: { gem: Gem; col: number; toRow: number; dropFrom: number }[]; scoreAfter?: number; progressAfter?: GoalProgress }
+  | { type: 'shuffle'; moves: { id: number; from: Cell; to: Cell }[]; scoreAfter?: number; progressAfter?: GoalProgress }
   | {
       type: 'combo';
       cascade: number;
@@ -87,12 +89,14 @@ export type Step =
       tier: number;
       points: number;
       scoreAfter?: number;
+      progressAfter?: GoalProgress;
     }
   | {
       type: 'boardClear';
       title: string;
       points: number;
       scoreAfter?: number;
+      progressAfter?: GoalProgress;
     };
 
 export interface TurnResult {

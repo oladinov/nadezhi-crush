@@ -171,7 +171,14 @@ export class CoreEngine implements GridCore {
 
     // Valid move accepted!
     this.movesLeft--;
-    const steps: Step[] = [{ type: 'swap', a, b, valid: true }];
+    const steps: Step[] = [{
+      type: 'swap',
+      a,
+      b,
+      valid: true,
+      scoreAfter: this.progress.score,
+      progressAfter: cloneGoalProgress(this.progress),
+    }];
     const initialScore = this.progress.score;
 
     if (fusion) {
@@ -181,6 +188,8 @@ export class CoreEngine implements GridCore {
       let matches = initialMatches;
       const MAX_SAFETY_CASCADES = 50;
       while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
+        this.resolveWave(matches, cascade, steps);
+
         const combo = getComboRating(cascade);
         if (combo) {
           this.progress.score += combo.points;
@@ -191,9 +200,10 @@ export class CoreEngine implements GridCore {
             tier: combo.tier,
             points: combo.points,
             scoreAfter: this.progress.score,
+            progressAfter: cloneGoalProgress(this.progress),
           });
         }
-        this.resolveWave(matches, cascade, steps);
+
         this.applyGravity(steps);
         this.applyRefill(steps, cascade);
         cascade++;
@@ -259,6 +269,7 @@ export class CoreEngine implements GridCore {
         points: SPECIAL_POINTS.bombBombFusion,
         isCrossBlast: true,
         scoreAfter: this.progress.score,
+        progressAfter: cloneGoalProgress(this.progress),
       });
 
       const toClearMap = new Map<string, { cell: Cell; gem: Gem; wave: number; bonusPoints?: number }>();
@@ -401,6 +412,8 @@ export class CoreEngine implements GridCore {
           type: 'transform',
           cells: toTransformCells,
           to: transformedGems,
+          scoreAfter: this.progress.score,
+          progressAfter: cloneGoalProgress(this.progress),
         });
       }
 
@@ -463,6 +476,8 @@ export class CoreEngine implements GridCore {
         }
       }
 
+      this.commitClears(toClearMap, 'fusion', cascade, steps, true, center);
+
       // Singularity Combo Announcement Banner
       steps.push({
         type: 'combo',
@@ -470,9 +485,9 @@ export class CoreEngine implements GridCore {
         title: '¡VÓRTICE CÓSMICO!',
         tier: 5,
         points: SPECIAL_POINTS.rainbowRainbowFusion,
+        scoreAfter: this.progress.score,
+        progressAfter: cloneGoalProgress(this.progress),
       });
-
-      this.commitClears(toClearMap, 'fusion', cascade, steps, true, center);
     }
 
     // Now gravity and refill after fusion
@@ -484,6 +499,8 @@ export class CoreEngine implements GridCore {
     let matches = evaluateMatches(this.board);
     const MAX_SAFETY_CASCADES = 50;
     while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
+      this.resolveWave(matches, cascade, steps);
+
       const combo = getComboRating(cascade);
       if (combo) {
         this.progress.score += combo.points;
@@ -494,9 +511,10 @@ export class CoreEngine implements GridCore {
           tier: combo.tier,
           points: combo.points,
           scoreAfter: this.progress.score,
+          progressAfter: cloneGoalProgress(this.progress),
         });
       }
-      this.resolveWave(matches, cascade, steps);
+
       this.applyGravity(steps);
       this.applyRefill(steps, cascade);
       cascade++;
@@ -579,6 +597,8 @@ export class CoreEngine implements GridCore {
         cell: sp.cell,
         gem: sp.gem,
         from: sp.from,
+        scoreAfter: this.progress.score,
+        progressAfter: cloneGoalProgress(this.progress),
       });
     }
   }
@@ -611,6 +631,7 @@ export class CoreEngine implements GridCore {
           trigger: act.trigger,
           points: pts,
           scoreAfter: this.progress.score,
+          progressAfter: cloneGoalProgress(this.progress),
         });
 
         toClearMap.set(`${act.cell.r},${act.cell.c}`, {
@@ -698,6 +719,8 @@ export class CoreEngine implements GridCore {
           affected,
           wave: act.wave,
           trigger: act.trigger,
+          scoreAfter: this.progress.score,
+          progressAfter: cloneGoalProgress(this.progress),
         });
       }
     }
@@ -756,6 +779,7 @@ export class CoreEngine implements GridCore {
       isBlackHole,
       vortexCenter,
       scoreAfter: this.progress.score,
+      progressAfter: cloneGoalProgress(this.progress),
     });
 
     // Check if the board has been completely cleared (Full Board Clear / Tablero Limpio)
@@ -768,6 +792,7 @@ export class CoreEngine implements GridCore {
         title: phrase,
         points: bonusPoints,
         scoreAfter: this.progress.score,
+        progressAfter: cloneGoalProgress(this.progress),
       });
     }
   }

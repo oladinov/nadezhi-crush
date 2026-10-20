@@ -1,6 +1,7 @@
 import confetti from 'canvas-confetti';
 import { CoreEngine } from './core/resolver';
-import { Cell, GemColor, TurnResult } from './core/types';
+import { Cell, GemColor, GoalProgress, TurnResult } from './core/types';
+import { cloneGoalProgress } from './core/goals';
 import { getLevelConfig } from './levels/generator';
 import { GameScene } from './view/scene';
 import { GemSkinMode, GemViewManager } from './view/gemViews';
@@ -277,18 +278,24 @@ export class Match3Game {
     this.notifyUI();
 
     try {
+      const initialProgress = cloneGoalProgress(this.core.progress);
+      let displayedProgress = initialProgress;
+
       // Core resolves entire turn synchronously and deterministically
       const result: TurnResult = this.core.resolveMove(a, b);
 
-      // View replays steps asynchronously with GSAP and real-time score updates directly from CoreEngine
+      // View replays steps asynchronously with GSAP and real-time score and goals updates directly from CoreEngine
       await this.player.play(result.steps, this.core.snapshot, (step) => {
-        if (step.scoreAfter !== undefined) {
-          this.notifyUI(step.scoreAfter);
+        if (step.progressAfter !== undefined) {
+          displayedProgress = step.progressAfter;
+        }
+        if (step.scoreAfter !== undefined || step.progressAfter !== undefined) {
+          this.notifyUI(step.scoreAfter, displayedProgress);
         }
       });
 
       if (result.outcome === 'won') {
-        this.notifyUI(this.core.progress.score);
+        this.notifyUI(this.core.progress.score, this.core.progress);
         this.state = 'LevelComplete';
         this.maxLevel = Math.max(this.maxLevel, this.currentLevel + 1);
         try {
@@ -394,10 +401,11 @@ export class Match3Game {
     return emoteSet.colors[color] || DEFAULT_COLOR_METADATA[color];
   }
 
-  public notifyUI(customScore?: number) {
+  public notifyUI(customScore?: number, customProgress?: GoalProgress) {
     if (!this.onUIUpdateCallback) return;
 
-    const currentScore = customScore !== undefined ? customScore : this.core.progress.score;
+    const prog = customProgress !== undefined ? customProgress : this.core.progress;
+    const currentScore = customScore !== undefined ? customScore : (customProgress ? customProgress.score : this.core.progress.score);
     const isEmotes = this.gemManager.skinMode === 'emotes';
 
     const goalsData: UIGoal[] = this.core.config.goals.map((g) => {
@@ -426,7 +434,7 @@ export class Match3Game {
             icon = meta.jewelIcon;
             iconType = 'text';
           }
-          cur = this.core.progress.collected[g.color] || 0;
+          cur = prog.collected[g.color] || 0;
           target = g.count;
           break;
         }
@@ -434,7 +442,7 @@ export class Match3Game {
           desc = `Detonar Bombas`;
           icon = '💣';
           iconType = 'text';
-          cur = this.core.progress.detonated;
+          cur = prog.detonated;
           target = g.count;
           break;
         case 'create':
@@ -442,17 +450,17 @@ export class Match3Game {
             desc = `Crear Arcoíris`;
             icon = '🌈';
             iconType = 'text';
-            cur = this.core.progress.created.rainbow;
+            cur = prog.created.rainbow;
           } else {
             desc = g.tier === 1 ? 'Crear Bomba 3×3' : g.tier === 2 ? 'Crear Bomba 5×5' : 'Crear Bomba';
             icon = g.tier === 2 ? '💥' : '💣';
             iconType = 'text';
             cur =
               g.tier === 1
-                ? this.core.progress.created.bomb1
+                ? prog.created.bomb1
                 : g.tier === 2
-                ? this.core.progress.created.bomb2
-                : this.core.progress.created.bomb1 + this.core.progress.created.bomb2;
+                ? prog.created.bomb2
+                : prog.created.bomb1 + prog.created.bomb2;
           }
           target = g.count;
           break;
