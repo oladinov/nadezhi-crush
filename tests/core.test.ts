@@ -595,6 +595,62 @@ describe('Bomb Matching and Detonate Triggers', () => {
     expect(finalReportedScore).toBe(engine.progress.score);
     expect(finalReportedScore).toBe(initialScore + result.pointsGained);
   });
+
+  it('when a bomb blast hits two rainbow gems, each rainbow clears a different remaining color', () => {
+    const board = createEmptyBoard(6, 6);
+    let id = 1;
+    // Populate board so color 2 is most abundant outside blast, color 3 is second most abundant
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 6; c++) {
+        const color = r < 3 ? 2 : r < 5 ? 3 : 1;
+        board[r][c] = { id: id++, kind: 'normal', color: color as any };
+      }
+    }
+
+    // Place a bomb of color 0 at (2, 2), and normal gems of color 0 at (2, 1) and (2, 4) with swap at (2, 3) <-> (2, 4)
+    board[2][1] = { id: 701, kind: 'normal', color: 0 };
+    board[2][2] = { id: 702, kind: 'bomb', color: 0, tier: 1 };
+    board[2][3] = { id: 703, kind: 'normal', color: 1 };
+    board[2][4] = { id: 704, kind: 'normal', color: 0 };
+
+    // Place two rainbow gems inside the 3x3 blast of (2, 2): at (1, 2) and (3, 2)
+    board[1][2] = { id: 801, kind: 'rainbow' };
+    board[3][2] = { id: 802, kind: 'rainbow' };
+
+    const config: LevelConfig = {
+      level: 300,
+      seed: 300,
+      rows: 6,
+      cols: 6,
+      colors: 4,
+      moves: 10,
+      goals: [{ type: 'score', target: 5000 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    const res = engine.resolveMove({ r: 2, c: 3 }, { r: 2, c: 4 });
+    expect(res.accepted).toBe(true);
+
+    const rainbowDetonates = res.steps.filter(
+      (s): s is Extract<typeof s, { type: 'detonate' }> =>
+        s.type === 'detonate' && s.gem.kind === 'rainbow'
+    );
+    expect(rainbowDetonates.length).toBe(2);
+
+    // Both rainbow gems should have non-empty, disjoint target sets of different colors
+    expect(rainbowDetonates[0].affected.length).toBeGreaterThan(0);
+    expect(rainbowDetonates[1].affected.length).toBeGreaterThan(0);
+
+    const firstSet = new Set(rainbowDetonates[0].affected.map((c) => `${c.r},${c.c}`));
+    for (const cell of rainbowDetonates[1].affected) {
+      expect(firstSet.has(`${cell.r},${cell.c}`)).toBe(false);
+    }
+
+    // Both color 2 (13 gems on board) and color 3 (11 gems on board) should have been completely collected
+    expect(res.progress.collected[2]).toBeGreaterThanOrEqual(13);
+    expect(res.progress.collected[3]).toBeGreaterThanOrEqual(11);
+  });
 });
 
 

@@ -677,8 +677,8 @@ export class CoreEngine implements GridCore {
           }
         }
       } else if (act.gem.kind === 'rainbow') {
-        // Rainbow triggered by explosion: activates against most abundant color
-        const targetColor = getMostAbundantColor(this.board);
+        // Rainbow triggered by explosion: activates against most abundant remaining color
+        const targetColor = getMostAbundantColor(this.board, toClearMap);
         const affected: Cell[] = [];
 
         toClearMap.set(`${act.cell.r},${act.cell.c}`, {
@@ -690,6 +690,7 @@ export class CoreEngine implements GridCore {
 
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
+            if (toClearMap.has(`${r},${c}`)) continue;
             const gem = this.board[r][c];
             if (gem && gem.kind !== 'rainbow' && gem.color === targetColor) {
               const cell = { r, c };

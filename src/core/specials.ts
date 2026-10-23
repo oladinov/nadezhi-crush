@@ -89,16 +89,21 @@ export function getBombBombArea(board: Board, center: Cell): Cell[] {
 }
 
 /**
- * Finds the most abundant color on the board among non-rainbow gems.
+ * Finds the most abundant color on the board among non-rainbow gems,
+ * optionally excluding cells already marked for clearing.
  * Tiebreaker: lower color index (0 < 1 < 2 < 3 < 4).
  */
-export function getMostAbundantColor(board: Board): GemColor {
+export function getMostAbundantColor(
+  board: Board,
+  excludedCells?: ReadonlyMap<string, unknown> | ReadonlySet<string>
+): GemColor {
   const counts: number[] = [0, 0, 0, 0, 0];
   const rows = board.length;
   const cols = board[0].length;
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
+      if (excludedCells?.has(`${r},${c}`)) continue;
       const gem = board[r][c];
       if (gem && gem.kind !== 'rainbow') {
         counts[gem.color]++;
