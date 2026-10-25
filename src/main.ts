@@ -479,7 +479,7 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   const openLevelSelect = () => {
-    levelSelectContainer.innerHTML = '';
+    levelSelectContainer.replaceChildren();
     const records = getAllLevelRecords();
 
     for (const group of getBiomeGroups()) {
@@ -510,7 +510,12 @@ window.addEventListener('DOMContentLoaded', () => {
         
         const rec = records[lvl];
         if (rec) {
-          btn.innerHTML = `${lvl}<span class="level-btn-stars">${'★'.repeat(rec.stars)}</span>`;
+          btn.textContent = lvl.toString();
+          const starsSpan = document.createElement('span');
+          starsSpan.className = 'level-btn-stars';
+          const safeStars = Math.max(1, Math.min(3, Number(rec.stars) || 1));
+          starsSpan.textContent = '★'.repeat(safeStars);
+          btn.appendChild(starsSpan);
         } else {
           btn.textContent = lvl.toString();
         }

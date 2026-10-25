@@ -251,15 +251,34 @@ export function setPlayerName(name: string): string {
 }
 
 /**
- * Retrieves all level records.
+ * Retrieves all level records with runtime sanitization against corrupted localStorage data.
  */
 export function getAllLevelRecords(): Record<number, LevelRecord> {
   const raw = safeGetItem(STORAGE_KEY_RECORDS);
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      return parsed;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const sanitized: Record<number, LevelRecord> = {};
+      for (const [key, val] of Object.entries(parsed)) {
+        const lvl = Number(key);
+        if (!Number.isInteger(lvl) || lvl < 1 || lvl > 10000) continue;
+        if (!val || typeof val !== 'object') continue;
+        const rec = val as Record<string, unknown>;
+        const score = typeof rec.score === 'number' && Number.isFinite(rec.score) ? Math.max(0, Math.floor(rec.score)) : 0;
+        const rawStars = typeof rec.stars === 'number' ? Math.floor(rec.stars) : 1;
+        const stars = (rawStars >= 3 ? 3 : rawStars === 2 ? 2 : 1) as 1 | 2 | 3;
+        const date = typeof rec.date === 'string' ? rec.date.slice(0, 32) : '';
+        const timestamp = typeof rec.timestamp === 'number' && Number.isFinite(rec.timestamp) ? rec.timestamp : 0;
+        sanitized[lvl] = {
+          level: lvl,
+          score,
+          stars,
+          date,
+          timestamp,
+        };
+      }
+      return sanitized;
     }
   } catch {
     // Ignore JSON error
@@ -276,7 +295,7 @@ export function getLevelRecord(level: number): LevelRecord | null {
 }
 
 /**
- * Retrieves the Top 10 Hall of Fame list.
+ * Retrieves the Top 10 Hall of Fame list with runtime sanitization.
  */
 export function getHallOfFame(): HighScoreEntry[] {
   const raw = safeGetItem(STORAGE_KEY_HOF);
@@ -286,7 +305,26 @@ export function getHallOfFame(): HighScoreEntry[] {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      const sanitized: HighScoreEntry[] = [];
+      for (const item of parsed.slice(0, 10)) {
+        if (!item || typeof item !== 'object') continue;
+        const entry = item as Record<string, unknown>;
+        const rawStars = typeof entry.stars === 'number' ? Math.floor(entry.stars) : 1;
+        sanitized.push({
+          id: typeof entry.id === 'string' ? entry.id.slice(0, 64) : `hof-${sanitized.length}`,
+          playerName: typeof entry.playerName === 'string' ? entry.playerName.trim().slice(0, 40) || 'Aventurero' : 'Aventurero',
+          score: typeof entry.score === 'number' && Number.isFinite(entry.score) ? Math.max(0, Math.floor(entry.score)) : 0,
+          level: typeof entry.level === 'number' && Number.isInteger(entry.level) ? Math.max(1, entry.level) : 1,
+          biomeName: typeof entry.biomeName === 'string' ? entry.biomeName.slice(0, 40) : '',
+          biomeIcon: typeof entry.biomeIcon === 'string' ? entry.biomeIcon.slice(0, 8) : '',
+          stars: (rawStars >= 3 ? 3 : rawStars === 2 ? 2 : 1) as 1 | 2 | 3,
+          date: typeof entry.date === 'string' ? entry.date.slice(0, 32) : '',
+          timestamp: typeof entry.timestamp === 'number' && Number.isFinite(entry.timestamp) ? entry.timestamp : 0,
+        });
+      }
+      if (sanitized.length > 0) {
+        return sanitized;
+      }
     }
   } catch {
     // Ignore JSON error

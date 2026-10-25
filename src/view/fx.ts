@@ -1003,15 +1003,24 @@ export class FXManager {
     const container = document.getElementById('combo-banner-container');
     if (!container) return;
 
-    container.innerHTML = '';
+    container.replaceChildren();
 
     const banner = document.createElement('div');
     banner.className = 'combo-banner tier-1';
-    banner.innerHTML = `
-      <div class="combo-banner-cascade">🔄 SIN MOVIMIENTOS 🔄</div>
-      <div class="combo-banner-title">¡BARAJANDO!</div>
-      <div class="combo-banner-points">Nuevas oportunidades</div>
-    `;
+
+    const cascadeEl = document.createElement('div');
+    cascadeEl.className = 'combo-banner-cascade';
+    cascadeEl.textContent = '🔄 SIN MOVIMIENTOS 🔄';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'combo-banner-title';
+    titleEl.textContent = '¡BARAJANDO!';
+
+    const pointsEl = document.createElement('div');
+    pointsEl.className = 'combo-banner-points';
+    pointsEl.textContent = 'Nuevas oportunidades';
+
+    banner.append(cascadeEl, titleEl, pointsEl);
 
     container.appendChild(banner);
 
@@ -1047,15 +1056,24 @@ export class FXManager {
     if (!container) return;
 
     // Clear previous banner if any
-    container.innerHTML = '';
+    container.replaceChildren();
 
     const banner = document.createElement('div');
     banner.className = `combo-banner tier-${tier}`;
-    banner.innerHTML = `
-      <div class="combo-banner-cascade">CASCADA ×${cascade}</div>
-      <div class="combo-banner-title">${title}</div>
-      <div class="combo-banner-points">+${points.toLocaleString()} PTS</div>
-    `;
+
+    const cascadeEl = document.createElement('div');
+    cascadeEl.className = 'combo-banner-cascade';
+    cascadeEl.textContent = `CASCADA ×${cascade}`;
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'combo-banner-title';
+    titleEl.textContent = title;
+
+    const pointsEl = document.createElement('div');
+    pointsEl.className = 'combo-banner-points';
+    pointsEl.textContent = `+${points.toLocaleString()} PTS`;
+
+    banner.append(cascadeEl, titleEl, pointsEl);
 
     container.appendChild(banner);
 
@@ -1104,15 +1122,24 @@ export class FXManager {
     if (!container) return;
 
     // Clear previous banner if any
-    container.innerHTML = '';
+    container.replaceChildren();
 
     const banner = document.createElement('div');
     banner.className = 'combo-banner tier-board-clear';
-    banner.innerHTML = `
-      <div class="combo-banner-cascade">✨ ¡TABLERO LIMPIO! ✨</div>
-      <div class="combo-banner-title">${title}</div>
-      <div class="combo-banner-points">+${points.toLocaleString()} PTS BONUS</div>
-    `;
+
+    const cascadeEl = document.createElement('div');
+    cascadeEl.className = 'combo-banner-cascade';
+    cascadeEl.textContent = '✨ ¡TABLERO LIMPIO! ✨';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'combo-banner-title';
+    titleEl.textContent = title;
+
+    const pointsEl = document.createElement('div');
+    pointsEl.className = 'combo-banner-points';
+    pointsEl.textContent = `+${points.toLocaleString()} PTS BONUS`;
+
+    banner.append(cascadeEl, titleEl, pointsEl);
 
     container.appendChild(banner);
 
