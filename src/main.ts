@@ -1,4 +1,4 @@
-import { Match3Game, UIStateUpdate, getLevelBiome } from './game';
+import { Match3Game, UIStateUpdate, getLevelBiome, getEmoteSetForLevel, INFINITE_CHAPTER_SIZE } from './game';
 import { sound } from './audio/sound';
 import {
   saveLevelScore,
@@ -387,17 +387,12 @@ window.addEventListener('DOMContentLoaded', () => {
     difficulty: string;
     diffClass: string;
     levels: number[];
+    isInfiniteChapter?: boolean;
+    defaultCollapsed?: boolean;
   }
 
   const getBiomeGroups = (): BiomeGroupConfig[] => {
-    // Generate Tierras Infinitas levels up to at least 45 or (maxLevel + 5) rounded to nearest 5, capped at 100
-    const infiniteMax = Math.min(100, Math.max(45, Math.ceil((game.maxLevel + 5) / 5) * 5));
-    const infiniteLevels: number[] = [];
-    for (let i = 41; i <= infiniteMax; i++) {
-      infiniteLevels.push(i);
-    }
-
-    return [
+    const groups: BiomeGroupConfig[] = [
       {
         name: 'Praderas del Valle',
         icon: '🌿',
@@ -468,14 +463,38 @@ window.addEventListener('DOMContentLoaded', () => {
         diffClass: 'diff-vesubio',
         levels: [37, 38, 39, 40],
       },
-      {
-        name: 'Tierras Infinitas',
-        icon: '♾️',
-        difficulty: 'Procedural',
-        diffClass: 'diff-infinite',
-        levels: infiniteLevels,
-      },
     ];
+
+    // Generate Tierras Infinitas chapters of 15 levels each (no upper level cap)
+    const highestTarget = Math.max(41, game.maxLevel + 1, game.currentLevel);
+    const totalChapters = Math.floor((highestTarget - 41) / INFINITE_CHAPTER_SIZE) + 1;
+
+    for (let c = 0; c < totalChapters; c++) {
+      const startLvl = 41 + c * INFINITE_CHAPTER_SIZE;
+      const endLvl = startLvl + INFINITE_CHAPTER_SIZE - 1;
+      const chapterLevels: number[] = [];
+      for (let i = startLvl; i <= endLvl; i++) {
+        chapterLevels.push(i);
+      }
+
+      const emoteSet = getEmoteSetForLevel(startLvl);
+      const containsCurrent = game.currentLevel >= startLvl && game.currentLevel <= endLvl;
+      const isLatestChapter = c === totalChapters - 1;
+      const shouldCollapse =
+        totalChapters > 1 && !containsCurrent && !(game.currentLevel <= 40 && isLatestChapter);
+
+      groups.push({
+        name: `Tierras Infinitas · Cap. ${c + 1} (${startLvl}–${endLvl})`,
+        icon: '♾️',
+        difficulty: emoteSet.name,
+        diffClass: 'diff-infinite',
+        levels: chapterLevels,
+        isInfiniteChapter: true,
+        defaultCollapsed: shouldCollapse,
+      });
+    }
+
+    return groups;
   };
 
   const openLevelSelect = () => {
@@ -484,14 +503,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
     for (const group of getBiomeGroups()) {
       const card = document.createElement('div');
-      card.className = 'biome-group-card';
+      card.className = `biome-group-card${group.defaultCollapsed ? ' collapsed' : ''}${group.isInfiniteChapter ? ' infinite-chapter-card' : ''}`;
 
       const header = document.createElement('div');
       header.className = 'biome-group-header';
 
       const title = document.createElement('div');
       title.className = 'biome-group-title';
-      title.textContent = `${group.icon} ${group.name}`;
+
+      if (group.isInfiniteChapter) {
+        const chevron = document.createElement('span');
+        chevron.className = 'biome-group-chevron';
+        chevron.textContent = group.defaultCollapsed ? '▸' : '▾';
+        title.appendChild(chevron);
+        title.appendChild(document.createTextNode(`${group.icon} ${group.name}`));
+
+        header.addEventListener('click', () => {
+          const isCollapsed = card.classList.toggle('collapsed');
+          chevron.textContent = isCollapsed ? '▸' : '▾';
+        });
+      } else {
+        title.textContent = `${group.icon} ${group.name}`;
+      }
 
       const badge = document.createElement('span');
       badge.className = `biome-group-badge ${group.diffClass}`;
@@ -502,7 +535,7 @@ window.addEventListener('DOMContentLoaded', () => {
       card.appendChild(header);
 
       const grid = document.createElement('div');
-      grid.className = 'biome-levels-grid';
+      grid.className = `biome-levels-grid${group.isInfiniteChapter ? ' grid-5' : ''}`;
 
       for (const lvl of group.levels) {
         const btn = document.createElement('button');

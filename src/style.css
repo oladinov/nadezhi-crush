@@ -651,6 +651,32 @@ html, body {
   gap: 8px;
 }
 
+.biome-levels-grid.grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.infinite-chapter-card .biome-group-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.biome-group-chevron {
+  font-size: 0.85rem;
+  color: #facc15;
+  width: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.biome-group-card.collapsed {
+  gap: 0;
+}
+
+.biome-group-card.collapsed .biome-levels-grid {
+  display: none;
+}
+
 .level-btn {
   background: rgba(30, 41, 59, 0.8);
   border: 1px solid var(--border-card);

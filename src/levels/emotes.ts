@@ -105,6 +105,18 @@ export const EMOTE_SETS: Record<string, EmoteSet> = {
 
 export const DEFAULT_COLOR_METADATA = EMOTE_SETS.elenco_original.colors;
 
+export const INFINITE_CHAPTER_SIZE = 15;
+
+export const INFINITE_EMOTE_ROTATION: EmoteSet[] = [
+  EMOTE_SETS.tierras_infinitas,
+  EMOTE_SETS.elenco_original,
+  EMOTE_SETS.show_palomitas,
+  EMOTE_SETS.ciudadela_arcana,
+  EMOTE_SETS.noche_magica,
+  EMOTE_SETS.forja_volcan,
+  EMOTE_SETS.travesia_corsaria,
+];
+
 export function getEmoteSetForLevel(level: number): EmoteSet {
   if (level <= 4) {
     // Niveles 1-4: Praderas del Valle
@@ -137,8 +149,9 @@ export function getEmoteSetForLevel(level: number): EmoteSet {
     // Niveles 37-40: Monte Vesubio
     return EMOTE_SETS.ciudadela_arcana;
   } else {
-    // Niveles 41+: Tierras Infinitas
-    return EMOTE_SETS.tierras_infinitas;
+    // Niveles 41+: Tierras Infinitas (rota los 7 sets de emotes en capítulos de 15 niveles)
+    const chapterIndex = Math.max(0, Math.floor((level - 41) / INFINITE_CHAPTER_SIZE));
+    return INFINITE_EMOTE_ROTATION[chapterIndex % INFINITE_EMOTE_ROTATION.length];
   }
 }
 

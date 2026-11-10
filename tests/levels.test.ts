@@ -121,16 +121,41 @@ describe('Bot Simulation and Infinite Generator', () => {
     expect(allEmoteIcons.size).toBe(35);
   });
 
-  it('calibrates Level 65 using identical level seed without outlier disparity', () => {
+  it('rotates all 7 emote sets every 15 levels in Tierras Infinitas', () => {
+    expect(getEmoteSetForLevel(41).id).toBe('tierras_infinitas');
+    expect(getEmoteSetForLevel(55).id).toBe('tierras_infinitas');
+    expect(getEmoteSetForLevel(56).id).toBe('elenco_original');
+    expect(getEmoteSetForLevel(70).id).toBe('elenco_original');
+    expect(getEmoteSetForLevel(71).id).toBe('show_palomitas');
+    expect(getEmoteSetForLevel(85).id).toBe('show_palomitas');
+    expect(getEmoteSetForLevel(86).id).toBe('ciudadela_arcana');
+    expect(getEmoteSetForLevel(100).id).toBe('ciudadela_arcana');
+    expect(getEmoteSetForLevel(101).id).toBe('noche_magica');
+    expect(getEmoteSetForLevel(115).id).toBe('noche_magica');
+    expect(getEmoteSetForLevel(116).id).toBe('forja_volcan');
+    expect(getEmoteSetForLevel(130).id).toBe('forja_volcan');
+    expect(getEmoteSetForLevel(131).id).toBe('travesia_corsaria');
+    expect(getEmoteSetForLevel(145).id).toBe('travesia_corsaria');
+    // Cycle repeats at 146
+    expect(getEmoteSetForLevel(146).id).toBe('tierras_infinitas');
+  });
+
+  it('calibrates Level 65, 83 and 89 with soft-cap and sawtooth curve without extreme outlier spikes', () => {
     const lvl65 = generateLevel(65);
     expect(lvl65.level).toBe(65);
     expect(lvl65.moves).toBe(18);
-    // Goals target naturally reflects true bot performance on level_65:init (23,000 pts)
-    const scoreGoal = lvl65.goals.find((g) => g.type === 'score');
-    expect(scoreGoal).toBeDefined();
-    if (scoreGoal && scoreGoal.type === 'score') {
-      expect(scoreGoal.target).toBe(23000);
-    }
+    const score65 = lvl65.goals.find((g) => g.type === 'score');
+    expect(score65?.type === 'score' && score65.target).toBe(16500);
+
+    const lvl83 = generateLevel(83);
+    expect(lvl83.moves).toBe(15);
+    const score83 = lvl83.goals.find((g) => g.type === 'score');
+    expect(score83?.type === 'score' && score83.target).toBe(19500);
+
+    const lvl89 = generateLevel(89);
+    expect(lvl89.moves).toBe(15);
+    const score89 = lvl89.goals.find((g) => g.type === 'score');
+    expect(score89?.type === 'score' && score89.target).toBeLessThanOrEqual(23500);
   });
 });
 

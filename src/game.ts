@@ -18,9 +18,9 @@ export type GameState =
   | 'LevelComplete'
   | 'LevelFailed';
 
-import { type ColorMeta, getEmoteSetForLevel, DEFAULT_COLOR_METADATA } from './levels/emotes';
+import { type ColorMeta, getEmoteSetForLevel, DEFAULT_COLOR_METADATA, INFINITE_CHAPTER_SIZE } from './levels/emotes';
 export type { ColorMeta };
-export { getEmoteSetForLevel, DEFAULT_COLOR_METADATA };
+export { getEmoteSetForLevel, DEFAULT_COLOR_METADATA, INFINITE_CHAPTER_SIZE };
 export const COLOR_METADATA: ColorMeta[] = DEFAULT_COLOR_METADATA;
 
 export interface BiomeInfo {
@@ -179,12 +179,13 @@ export class Match3Game {
         const savedMax = localStorage.getItem('nadezhi_max_level');
         if (savedCur) {
           const curNum = parseInt(savedCur, 10);
-          if (!isNaN(curNum) && curNum >= 1) this.currentLevel = Math.min(curNum, 100);
+          if (!isNaN(curNum) && curNum >= 1) this.currentLevel = Math.min(curNum, 10000);
         }
         if (savedMax) {
           const maxNum = parseInt(savedMax, 10);
-          if (!isNaN(maxNum) && maxNum >= 1) this.maxLevel = Math.min(maxNum, 100);
+          if (!isNaN(maxNum) && maxNum >= 1) this.maxLevel = Math.min(maxNum, 10000);
         }
+        this.maxLevel = Math.max(this.maxLevel, this.currentLevel);
       }
     } catch {
       this.maxLevel = 1;

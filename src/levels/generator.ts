@@ -16,9 +16,11 @@ export function pickGoals(rng: Mulberry32, targetScore: number): Goal[] {
   const safeTarget = Math.max(1500, targetScore);
 
   switch (goalType) {
-    case 0:
-      // Pure score
-      return [{ type: 'score', target: safeTarget }];
+    case 0: {
+      // Pure score (balanced at 90% so pure-score levels don't spike disproportionately above multi-goal levels)
+      const score = Math.max(1500, Math.round((safeTarget * 0.9) / 500) * 500);
+      return [{ type: 'score', target: score }];
+    }
 
     case 1: {
       // Score + Detonate
@@ -94,14 +96,31 @@ const LEVEL_METADATA_21_40: Record<number, { title: string; description: string 
   40: { title: 'La Moneda Número Uno', description: 'La prueba suprema para reclamar el talismán mágico y consagrarte como maestro.' },
 };
 
+export function getSawtoothOffset(level: number): number {
+  const mod = level % 10;
+  if (mod === 5 || mod === 0) return -0.14; // Nivel de respiro cada 5 niveles
+  if (mod === 9) return 0.12; // Pico climático de bloque
+  if (mod === 3 || mod === 4 || mod === 8) return 0.06; // Nivel táctico
+  return 0; // Niveles fluidos (1, 2, 6, 7)
+}
+
 export function generateLevel(level: number, calib: CalibrationData = DEFAULT_CALIBRATION): LevelConfig {
   const n = level - 21;
   const seed = hashString(`level_${level}`);
   const rng = new Mulberry32(hashString(`gen_${level}`));
-  const moves = Math.max(14, 25 - Math.floor(n / 6)); // margen decreciente
-  const k = Math.min(1.3, 0.8 + 0.012 * n) - (level % 10 === 0 ? 0.15 : 0); // meseta cada 10
-  const bot = simulateGreedy({ level, seed, moves, colors: 5 }).score; // determinista por nivel
-  const par = 0.5 * calib.perMove * moves + 0.5 * bot; // mezcla: estabiliza cascadas afortunadas
+  const moves = Math.max(15, 25 - Math.floor(n / 6)); // Piso de 15 movimientos para margen táctico
+  const baseK = Math.min(1.22, 0.8 + 0.01 * n);
+  const k = Math.max(0.75, baseK + getSawtoothOffset(level));
+
+  const botRaw = simulateGreedy({ level, seed, moves, colors: 5 }).score; // determinista por nivel
+  const softCapThreshold = 1250 * moves;
+  const botFloor = 900 * moves;
+  const effectiveBot =
+    botRaw > softCapThreshold
+      ? softCapThreshold + (botRaw - softCapThreshold) * 0.3
+      : Math.max(botRaw, 0.5 * botRaw + 0.5 * botFloor);
+
+  const par = 0.45 * calib.perMove * moves + 0.55 * effectiveBot;
   const target = Math.round((par * k) / 500) * 500;
 
   const meta = LEVEL_METADATA_21_40[level] ?? {
