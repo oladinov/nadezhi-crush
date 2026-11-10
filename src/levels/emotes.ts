@@ -106,6 +106,8 @@ export const EMOTE_SETS: Record<string, EmoteSet> = {
 export const DEFAULT_COLOR_METADATA = EMOTE_SETS.elenco_original.colors;
 
 export const INFINITE_CHAPTER_SIZE = 15;
+export const BIOME_CHAPTER_SIZE = 15;
+export const INFINITE_START_LEVEL = 151;
 
 export const INFINITE_EMOTE_ROTATION: EmoteSet[] = [
   EMOTE_SETS.tierras_infinitas,
@@ -118,39 +120,39 @@ export const INFINITE_EMOTE_ROTATION: EmoteSet[] = [
 ];
 
 export function getEmoteSetForLevel(level: number): EmoteSet {
-  if (level <= 4) {
-    // Niveles 1-4: Praderas del Valle
+  if (level <= 15) {
+    // Niveles 1-15: Praderas del Valle
     return EMOTE_SETS.elenco_original;
-  } else if (level <= 8) {
-    // Niveles 5-8: Colinas del Atardecer
+  } else if (level <= 30) {
+    // Niveles 16-30: Colinas del Atardecer
     return EMOTE_SETS.show_palomitas;
-  } else if (level <= 12) {
-    // Niveles 9-12: Caverna de Cristales
+  } else if (level <= 45) {
+    // Niveles 31-45: Caverna de Cristales
     return EMOTE_SETS.ciudadela_arcana;
-  } else if (level <= 16) {
-    // Niveles 13-16: Bosque de las Luciérnagas
+  } else if (level <= 60) {
+    // Niveles 46-60: Bosque de las Luciérnagas
     return EMOTE_SETS.noche_magica;
-  } else if (level <= 20) {
-    // Niveles 17-20: Monte del Destino
+  } else if (level <= 75) {
+    // Niveles 61-75: Monte del Destino
     return EMOTE_SETS.forja_volcan;
-  } else if (level <= 24) {
-    // Niveles 21-24: Erebor
+  } else if (level <= 90) {
+    // Niveles 76-90: Erebor
     return EMOTE_SETS.forja_volcan;
-  } else if (level <= 28) {
-    // Niveles 25-28: Númenórë
+  } else if (level <= 105) {
+    // Niveles 91-105: Númenórë
     return EMOTE_SETS.travesia_corsaria;
-  } else if (level <= 32) {
-    // Niveles 29-32: Pixie Hollow
+  } else if (level <= 120) {
+    // Niveles 106-120: Pixie Hollow
     return EMOTE_SETS.noche_magica;
-  } else if (level <= 36) {
-    // Niveles 33-36: Nunca Jamás
+  } else if (level <= 135) {
+    // Niveles 121-135: Nunca Jamás
     return EMOTE_SETS.travesia_corsaria;
-  } else if (level <= 40) {
-    // Niveles 37-40: Monte Vesubio
+  } else if (level <= 150) {
+    // Niveles 136-150: Monte Vesubio
     return EMOTE_SETS.ciudadela_arcana;
   } else {
-    // Niveles 41+: Tierras Infinitas (rota los 7 sets de emotes en capítulos de 15 niveles)
-    const chapterIndex = Math.max(0, Math.floor((level - 41) / INFINITE_CHAPTER_SIZE));
+    // Niveles 151+: Tierras Infinitas (rota los 7 sets de emotes en capítulos de 15 niveles)
+    const chapterIndex = Math.max(0, Math.floor((level - INFINITE_START_LEVEL) / INFINITE_CHAPTER_SIZE));
     return INFINITE_EMOTE_ROTATION[chapterIndex % INFINITE_EMOTE_ROTATION.length];
   }
 }

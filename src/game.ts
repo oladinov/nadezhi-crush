@@ -18,9 +18,22 @@ export type GameState =
   | 'LevelComplete'
   | 'LevelFailed';
 
-import { type ColorMeta, getEmoteSetForLevel, DEFAULT_COLOR_METADATA, INFINITE_CHAPTER_SIZE } from './levels/emotes';
+import {
+  type ColorMeta,
+  getEmoteSetForLevel,
+  DEFAULT_COLOR_METADATA,
+  INFINITE_CHAPTER_SIZE,
+  BIOME_CHAPTER_SIZE,
+  INFINITE_START_LEVEL,
+} from './levels/emotes';
 export type { ColorMeta };
-export { getEmoteSetForLevel, DEFAULT_COLOR_METADATA, INFINITE_CHAPTER_SIZE };
+export {
+  getEmoteSetForLevel,
+  DEFAULT_COLOR_METADATA,
+  INFINITE_CHAPTER_SIZE,
+  BIOME_CHAPTER_SIZE,
+  INFINITE_START_LEVEL,
+};
 export const COLOR_METADATA: ColorMeta[] = DEFAULT_COLOR_METADATA;
 
 export interface BiomeInfo {
@@ -33,7 +46,7 @@ export interface BiomeInfo {
 
 export function getLevelBiome(level: number): BiomeInfo {
   const emoteSet = getEmoteSetForLevel(level);
-  if (level <= 4) {
+  if (level <= 15) {
     return {
       name: 'Praderas del Valle',
       icon: '🌿',
@@ -41,7 +54,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'Campos verdes y cielo despejado de la Comarca.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 8) {
+  } else if (level <= 30) {
     return {
       name: 'Colinas del Atardecer',
       icon: '🌅',
@@ -49,7 +62,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'Luz dorada sobre pacíficas aldeas con chimeneas humeantes.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 12) {
+  } else if (level <= 45) {
     return {
       name: 'Caverna de Cristales',
       icon: '🔮',
@@ -57,7 +70,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'Profundidades ancestrales iluminadas por antorchas y gemas místicas.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 16) {
+  } else if (level <= 60) {
     return {
       name: 'Bosque de las Luciérnagas',
       icon: '🌲',
@@ -65,7 +78,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'Noche estrellada bajo las ramas del Gran Árbol sagrado.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 20) {
+  } else if (level <= 75) {
     return {
       name: 'Monte del Destino',
       icon: '🌋',
@@ -73,7 +86,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'Tierras volcánicas con ríos de fuego y desafíos ardientes.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 24) {
+  } else if (level <= 90) {
     return {
       name: 'Erebor',
       icon: '⛏️',
@@ -81,7 +94,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'El más grande reino de la Tierra Media forjado bajo la Montaña Solitaria.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 28) {
+  } else if (level <= 105) {
     return {
       name: 'Númenórë',
       icon: '⚓',
@@ -89,7 +102,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'Majestuoso imperio marítimo de los Dúnedain sobre el gran océano.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 32) {
+  } else if (level <= 120) {
     return {
       name: 'Pixie Hollow',
       icon: '🧚',
@@ -97,7 +110,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'El valle encantado de las hadas, flores gigantes y polvillo dorado.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 36) {
+  } else if (level <= 135) {
     return {
       name: 'Nunca Jamás',
       icon: '🏴‍☠️',
@@ -105,7 +118,7 @@ export function getLevelBiome(level: number): BiomeInfo {
       desc: 'La mítica isla de piratas, lagunas de sirenas y eterna juventud.',
       emoteSetName: emoteSet.name,
     };
-  } else if (level <= 40) {
+  } else if (level <= 150) {
     return {
       name: 'Monte Vesubio',
       icon: '🔮',

@@ -64,47 +64,59 @@ describe('Bot Simulation and Infinite Generator', () => {
     expect(lvl50.moves).toBeLessThanOrEqual(21);
   });
 
-  it('assigns fantasy biomes correctly up to Tierras Infinitas', () => {
-    const biome20 = getLevelBiome(20);
-    expect(biome20.name).toBe('Monte del Destino');
-    expect(biome20.image).toBe('/fantasy_volcano.jpg');
+  it('assigns fantasy biomes in 15-level chapters up to Tierras Infinitas', () => {
+    const biome15 = getLevelBiome(15);
+    expect(biome15.name).toBe('Praderas del Valle');
 
-    const biome21 = getLevelBiome(21);
-    expect(biome21.name).toBe('Erebor');
-    expect(biome21.icon).toBe('⛏️');
-    expect(biome21.image).toBe('/fantasy_erebor.jpg');
+    const biome30 = getLevelBiome(30);
+    expect(biome30.name).toBe('Colinas del Atardecer');
 
-    const biome25 = getLevelBiome(25);
-    expect(biome25.name).toBe('Númenórë');
-    expect(biome25.icon).toBe('⚓');
-    expect(biome25.image).toBe('/fantasy_numenor.jpg');
+    const biome45 = getLevelBiome(45);
+    expect(biome45.name).toBe('Caverna de Cristales');
 
-    const biome29 = getLevelBiome(29);
-    expect(biome29.name).toBe('Pixie Hollow');
-    expect(biome29.icon).toBe('🧚');
-    expect(biome29.image).toBe('/fantasy_pixie.jpg');
+    const biome60 = getLevelBiome(60);
+    expect(biome60.name).toBe('Bosque de las Luciérnagas');
 
-    const biome33 = getLevelBiome(33);
-    expect(biome33.name).toBe('Nunca Jamás');
-    expect(biome33.icon).toBe('🏴‍☠️');
-    expect(biome33.image).toBe('/fantasy_neverland.jpg');
+    const biome75 = getLevelBiome(75);
+    expect(biome75.name).toBe('Monte del Destino');
+    expect(biome75.image).toBe('/fantasy_volcano.jpg');
 
-    const biome37 = getLevelBiome(37);
-    expect(biome37.name).toBe('Monte Vesubio');
-    expect(biome37.icon).toBe('🔮');
-    expect(biome37.image).toBe('/fantasy_vesubio.jpg');
+    const biome83 = getLevelBiome(83);
+    expect(biome83.name).toBe('Erebor');
+    expect(biome83.icon).toBe('⛏️');
+    expect(biome83.image).toBe('/fantasy_erebor.jpg');
 
-    const biome41 = getLevelBiome(41);
-    expect(biome41.name).toBe('Tierras Infinitas');
-    expect(biome41.icon).toBe('♾️');
-    expect(biome41.image).toBe('/fantasy_infinite.jpg');
-    expect(biome41.emoteSetName).toBe('Tierras Infinitas');
+    const biome104 = getLevelBiome(104);
+    expect(biome104.name).toBe('Númenórë');
+    expect(biome104.icon).toBe('⚓');
+    expect(biome104.image).toBe('/fantasy_numenor.jpg');
+
+    const biome120 = getLevelBiome(120);
+    expect(biome120.name).toBe('Pixie Hollow');
+    expect(biome120.icon).toBe('🧚');
+    expect(biome120.image).toBe('/fantasy_pixie.jpg');
+
+    const biome135 = getLevelBiome(135);
+    expect(biome135.name).toBe('Nunca Jamás');
+    expect(biome135.icon).toBe('🏴‍☠️');
+    expect(biome135.image).toBe('/fantasy_neverland.jpg');
+
+    const biome150 = getLevelBiome(150);
+    expect(biome150.name).toBe('Monte Vesubio');
+    expect(biome150.icon).toBe('🔮');
+    expect(biome150.image).toBe('/fantasy_vesubio.jpg');
+
+    const biome151 = getLevelBiome(151);
+    expect(biome151.name).toBe('Tierras Infinitas');
+    expect(biome151.icon).toBe('♾️');
+    expect(biome151.image).toBe('/fantasy_infinite.jpg');
+    expect(biome151.emoteSetName).toBe('Tierras Infinitas');
   });
 
   it('assigns unique and complete emote sets for each biome without twitch logo', () => {
     const allEmoteIcons = new Set<string>();
 
-    for (let lvl = 1; lvl <= 45; lvl++) {
+    for (let lvl = 1; lvl <= 165; lvl++) {
       const set = getEmoteSetForLevel(lvl);
       expect(set.colors.length).toBe(5);
 
@@ -121,23 +133,23 @@ describe('Bot Simulation and Infinite Generator', () => {
     expect(allEmoteIcons.size).toBe(35);
   });
 
-  it('rotates all 7 emote sets every 15 levels in Tierras Infinitas', () => {
-    expect(getEmoteSetForLevel(41).id).toBe('tierras_infinitas');
-    expect(getEmoteSetForLevel(55).id).toBe('tierras_infinitas');
-    expect(getEmoteSetForLevel(56).id).toBe('elenco_original');
-    expect(getEmoteSetForLevel(70).id).toBe('elenco_original');
-    expect(getEmoteSetForLevel(71).id).toBe('show_palomitas');
-    expect(getEmoteSetForLevel(85).id).toBe('show_palomitas');
-    expect(getEmoteSetForLevel(86).id).toBe('ciudadela_arcana');
-    expect(getEmoteSetForLevel(100).id).toBe('ciudadela_arcana');
-    expect(getEmoteSetForLevel(101).id).toBe('noche_magica');
-    expect(getEmoteSetForLevel(115).id).toBe('noche_magica');
-    expect(getEmoteSetForLevel(116).id).toBe('forja_volcan');
-    expect(getEmoteSetForLevel(130).id).toBe('forja_volcan');
-    expect(getEmoteSetForLevel(131).id).toBe('travesia_corsaria');
-    expect(getEmoteSetForLevel(145).id).toBe('travesia_corsaria');
-    // Cycle repeats at 146
-    expect(getEmoteSetForLevel(146).id).toBe('tierras_infinitas');
+  it('rotates all 7 emote sets every 15 levels in Tierras Infinitas (151+)', () => {
+    expect(getEmoteSetForLevel(151).id).toBe('tierras_infinitas');
+    expect(getEmoteSetForLevel(165).id).toBe('tierras_infinitas');
+    expect(getEmoteSetForLevel(166).id).toBe('elenco_original');
+    expect(getEmoteSetForLevel(180).id).toBe('elenco_original');
+    expect(getEmoteSetForLevel(181).id).toBe('show_palomitas');
+    expect(getEmoteSetForLevel(195).id).toBe('show_palomitas');
+    expect(getEmoteSetForLevel(196).id).toBe('ciudadela_arcana');
+    expect(getEmoteSetForLevel(210).id).toBe('ciudadela_arcana');
+    expect(getEmoteSetForLevel(211).id).toBe('noche_magica');
+    expect(getEmoteSetForLevel(225).id).toBe('noche_magica');
+    expect(getEmoteSetForLevel(226).id).toBe('forja_volcan');
+    expect(getEmoteSetForLevel(240).id).toBe('forja_volcan');
+    expect(getEmoteSetForLevel(241).id).toBe('travesia_corsaria');
+    expect(getEmoteSetForLevel(255).id).toBe('travesia_corsaria');
+    // Cycle repeats at 256
+    expect(getEmoteSetForLevel(256).id).toBe('tierras_infinitas');
   });
 
   it('calibrates Level 65, 83 and 89 with soft-cap and sawtooth curve without extreme outlier spikes', () => {

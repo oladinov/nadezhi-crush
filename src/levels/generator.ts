@@ -64,37 +64,119 @@ export function pickGoals(rng: Mulberry32, targetScore: number): Goal[] {
   }
 }
 
-const LEVEL_METADATA_21_40: Record<number, { title: string; description: string }> = {
-  // Erebor (21 - 24)
-  21: { title: 'Las Puertas de Piedra', description: 'Entrada ancestral al gran reino enano bajo la Montaña Solitaria.' },
-  22: { title: 'Salón de los Reyes', description: 'Inmensas columnas talladas y tesoros de oro macizo resguardados por los enanos.' },
-  23: { title: 'La Gran Forja de Thrór', description: 'Fuelle gigantesco y yunques donde nacen armas y armaduras legendarias.' },
-  24: { title: 'La Piedra del Arca', description: 'El corazón resplandeciente de la montaña que corona el trono de Erebor.' },
+const BIOME_PROCEDURAL_LORE: {
+  maxLevel: number;
+  entries: { title: string; description: string }[];
+}[] = [
+  {
+    // Colinas del Atardecer (16 - 30, procedural a partir del 21)
+    maxLevel: 30,
+    entries: [
+      { title: 'Sendero del Ocaso', description: 'Brisa cálida entre colinas doradas y chimeneas humeantes.' },
+      { title: 'Molino del Valle', description: 'Las aspas giran suavemente bajo el cielo ámbar del atardecer.' },
+      { title: 'Feria de la Aldea', description: 'Faroles encendidos, música festiva y alegría en la comarca.' },
+      { title: 'Mirador del Crepúsculo', description: 'Últimos rayos de sol tiñendo el horizonte de púrpura y oro.' },
+    ],
+  },
+  {
+    // Caverna de Cristales (31 - 45)
+    maxLevel: 45,
+    entries: [
+      { title: 'Galería de Cuarzo', description: 'Destellos prismáticos reflejados en las paredes subterráneas.' },
+      { title: 'Bóveda de Amatista', description: 'Geodas gigantes que vibran con energía arcana ancestral.' },
+      { title: 'Río Subterráneo', description: 'Aguas minerales que fluyen entre estalactitas luminosas.' },
+      { title: 'Corazón Cristalino', description: 'El santuario más profundo donde convergen todas las vetas.' },
+    ],
+  },
+  {
+    // Bosque de las Luciérnagas (46 - 60)
+    maxLevel: 60,
+    entries: [
+      { title: 'Claro de Luna', description: 'Danza de destellos esmeralda bajo el dosel del bosque antiguo.' },
+      { title: 'Raíces del Gran Árbol', description: 'Senderos musgosos custodiados por espíritus silvestres.' },
+      { title: 'Estanque Estrellado', description: 'El cielo nocturno se refleja intacto sobre aguas serenas.' },
+      { title: 'Santuario Nocturno', description: 'Susurros mágicos entre hojas plateadas y luciérnagas doradas.' },
+    ],
+  },
+  {
+    // Monte del Destino (61 - 75)
+    maxLevel: 75,
+    entries: [
+      { title: 'Laderas de Ceniza', description: 'Terreno escarpado donde el calor anuncia la furia del volcán.' },
+      { title: 'Puente de Obsidiana', description: 'Cruza sobre ríos incandescentes de magma ancestral.' },
+      { title: 'Grieta de Fuego', description: 'Columnas de vapor y chispas que ponen a prueba tu temple.' },
+      { title: 'Cámara del Cráter', description: 'El núcleo ardiente donde solo la estrategia suprema prevalece.' },
+    ],
+  },
+  {
+    // Erebor (76 - 90)
+    maxLevel: 90,
+    entries: [
+      { title: 'Las Puertas de Piedra', description: 'Entrada ancestral al gran reino enano bajo la Montaña Solitaria.' },
+      { title: 'Salón de los Reyes', description: 'Inmensas columnas talladas y tesoros de oro macizo resguardados por los enanos.' },
+      { title: 'La Gran Forja de Thrór', description: 'Fuelle gigantesco y yunques donde nacen armas y armaduras legendarias.' },
+      { title: 'La Piedra del Arca', description: 'El corazón resplandeciente de la montaña que corona el trono de Erebor.' },
+    ],
+  },
+  {
+    // Númenórë (91 - 105)
+    maxLevel: 105,
+    entries: [
+      { title: 'Bahía de Rómenna', description: 'Arribo a las costas del majestuoso reino marítimo de los Dúnedain.' },
+      { title: 'Torres Blancas de Armenelos', description: 'Mármol resplandeciente bajo la brisa y velas doradas sobre el horizonte.' },
+      { title: 'Cima del Meneltarma', description: 'El santuario sagrado que se alza sobre las nubes tocando los cielos de Númenórë.' },
+      { title: 'El Foco de Eärendil', description: 'Navega guiado por la luz inmortal de la estrella más brillante del océano.' },
+    ],
+  },
+  {
+    // Pixie Hollow (106 - 120)
+    maxLevel: 120,
+    entries: [
+      { title: 'El Árbol del Polvillo', description: 'Llegada al corazón mágico de las hadas donde brota el polvillo dorado.' },
+      { title: 'Prado de las Campanillas', description: 'Flores colosales y brisas encantadas que susurran secretos primaverales.' },
+      { title: 'Rincón de las Estaciones', description: 'Donde el cambio de estación se teje con magia, colores y alegría natural.' },
+      { title: 'El Gran Vuelo Mágico', description: 'Alza el vuelo sobre las copas iluminadas del valle encantado de las hadas.' },
+    ],
+  },
+  {
+    // Nunca Jamás (121 - 135)
+    maxLevel: 135,
+    entries: [
+      { title: 'La Roca de la Calavera', description: 'Misterioso enclave de mareas traicioneras y secretos custodiados por piratas.' },
+      { title: 'Laguna de las Sirenas', description: 'Aguas cristalinas y corales resplandecientes bajo la luna de la eterna juventud.' },
+      { title: 'Campamento del Árbol Hueco', description: 'El escondite secreto donde la aventura y la imaginación jamás envejecen.' },
+      { title: 'El Galeón del Capitán', description: 'Duelo de ingenio y destreza sobre la cubierta del legendario navío corsario.' },
+    ],
+  },
+  {
+    // Monte Vesubio (136 - 150)
+    maxLevel: 150,
+    entries: [
+      { title: 'Faldas del Volcán Místico', description: 'Ascenso a la caldera del Monte Vesubio entre vapores azufrados y runas antiguas.' },
+      { title: 'El Callejón de los Hechizos', description: 'Frascos borboteantes y rayos arcanos que iluminan la noche napolitana.' },
+      { title: 'El Sanctum de Magica', description: 'La cámara secreta de Magica De Spell donde prepara sus más temibles conjuros.' },
+      { title: 'La Moneda Número Uno', description: 'La prueba suprema para reclamar el talismán mágico y consagrarte como maestro.' },
+    ],
+  },
+];
 
-  // Númenórë (25 - 28)
-  25: { title: 'Bahía de Rómenna', description: 'Arribo a las costas del majestuoso reino marítimo de los Dúnedain.' },
-  26: { title: 'Torres Blancas de Armenelos', description: 'Mármol resplandeciente bajo la brisa y velas doradas sobre el horizonte.' },
-  27: { title: 'Cima del Meneltarma', description: 'El santuario sagrado que se alza sobre las nubes tocando los cielos de Númenórë.' },
-  28: { title: 'El Foco de Eärendil', description: 'Navega guiado por la luz inmortal de la estrella más brillante del océano.' },
-
-  // Pixie Hollow (29 - 32)
-  29: { title: 'El Árbol del Polvillo', description: 'Llegada al corazón mágico de las hadas donde brota el polvillo dorado.' },
-  30: { title: 'Prado de las Campanillas', description: 'Flores colosales y brisas encantadas que susurran secretos primaverales.' },
-  31: { title: 'Rincón de las Estaciones', description: 'Donde el cambio de estación se teje con magia, colores y alegría natural.' },
-  32: { title: 'El Gran Vuelo Mágico', description: 'Alza el vuelo sobre las copas iluminadas del valle encantado de las hadas.' },
-
-  // Nunca Jamás (33 - 36)
-  33: { title: 'La Roca de la Calavera', description: 'Misterioso enclave de mareas traicioneras y secretos custodiados por piratas.' },
-  34: { title: 'Laguna de las Sirenas', description: 'Aguas cristalinas y corales resplandecientes bajo la luna de la eterna juventud.' },
-  35: { title: 'Campamento del Árbol Hueco', description: 'El escondite secreto donde la aventura y la imaginación jamás envejecen.' },
-  36: { title: 'El Galeón del Capitán', description: 'Duelo de ingenio y destreza sobre la cubierta del legendario navío corsario.' },
-
-  // Monte Vesubio (37 - 40)
-  37: { title: 'Faldas del Volcán Místico', description: 'Ascenso a la caldera del Monte Vesubio entre vapores azufrados y runas antiguas.' },
-  38: { title: 'El Callejón de los Hechizos', description: 'Frascos borboteantes y rayos arcanos que iluminan la noche napolitana.' },
-  39: { title: 'El Sanctum de Magica', description: 'La cámara secreta de Magica De Spell donde prepara sus más temibles conjuros.' },
-  40: { title: 'La Moneda Número Uno', description: 'La prueba suprema para reclamar el talismán mágico y consagrarte como maestro.' },
-};
+function getProceduralLevelMeta(level: number): { title: string; description: string } {
+  for (const group of BIOME_PROCEDURAL_LORE) {
+    if (level <= group.maxLevel) {
+      const startLvl = group.maxLevel - 14;
+      const offset = Math.max(0, level - startLvl);
+      const entry = group.entries[offset % group.entries.length];
+      return {
+        title: `${entry.title}`,
+        description: entry.description,
+      };
+    }
+  }
+  return {
+    title: `Nivel ${level}`,
+    description: `Generado proceduralmente con dificultad equilibrada.`,
+  };
+}
 
 export function getSawtoothOffset(level: number): number {
   const mod = level % 10;
@@ -123,10 +205,7 @@ export function generateLevel(level: number, calib: CalibrationData = DEFAULT_CA
   const par = 0.45 * calib.perMove * moves + 0.55 * effectiveBot;
   const target = Math.round((par * k) / 500) * 500;
 
-  const meta = LEVEL_METADATA_21_40[level] ?? {
-    title: `Nivel ${level}`,
-    description: `Generado proceduralmente con dificultad equilibrada.`,
-  };
+  const meta = getProceduralLevelMeta(level);
 
   return {
     level,

@@ -1,4 +1,11 @@
-import { Match3Game, UIStateUpdate, getLevelBiome, getEmoteSetForLevel, INFINITE_CHAPTER_SIZE } from './game';
+import {
+  Match3Game,
+  UIStateUpdate,
+  getLevelBiome,
+  getEmoteSetForLevel,
+  INFINITE_CHAPTER_SIZE,
+  INFINITE_START_LEVEL,
+} from './game';
 import { sound } from './audio/sound';
 import {
   saveLevelScore,
@@ -391,97 +398,107 @@ window.addEventListener('DOMContentLoaded', () => {
     defaultCollapsed?: boolean;
   }
 
+  const makeRange = (start: number, end: number): number[] => {
+    const arr: number[] = [];
+    for (let i = start; i <= end; i++) arr.push(i);
+    return arr;
+  };
+
   const getBiomeGroups = (): BiomeGroupConfig[] => {
-    const groups: BiomeGroupConfig[] = [
+    const baseBiomes: Omit<BiomeGroupConfig, 'defaultCollapsed'>[] = [
       {
-        name: 'Praderas del Valle',
+        name: 'Praderas del Valle (1–15)',
         icon: '🌿',
         difficulty: 'Fácil',
         diffClass: 'diff-easy',
-        levels: [1, 2, 3, 4],
+        levels: makeRange(1, 15),
       },
       {
-        name: 'Colinas del Atardecer',
+        name: 'Colinas del Atardecer (16–30)',
         icon: '🌅',
         difficulty: 'Normal',
         diffClass: 'diff-normal',
-        levels: [5, 6, 7, 8],
+        levels: makeRange(16, 30),
       },
       {
-        name: 'Caverna de Cristales',
+        name: 'Caverna de Cristales (31–45)',
         icon: '🔮',
         difficulty: 'Desafiante',
         diffClass: 'diff-challenging',
-        levels: [9, 10, 11, 12],
+        levels: makeRange(31, 45),
       },
       {
-        name: 'Bosque de las Luciérnagas',
+        name: 'Bosque de las Luciérnagas (46–60)',
         icon: '🌲',
         difficulty: 'Difícil',
         diffClass: 'diff-hard',
-        levels: [13, 14, 15, 16],
+        levels: makeRange(46, 60),
       },
       {
-        name: 'Monte del Destino',
+        name: 'Monte del Destino (61–75)',
         icon: '🌋',
         difficulty: 'Experto',
         diffClass: 'diff-expert',
-        levels: [17, 18, 19, 20],
+        levels: makeRange(61, 75),
       },
       {
-        name: 'Erebor',
+        name: 'Erebor (76–90)',
         icon: '⛏️',
         difficulty: 'Legendario',
         diffClass: 'diff-erebor',
-        levels: [21, 22, 23, 24],
+        levels: makeRange(76, 90),
       },
       {
-        name: 'Númenórë',
+        name: 'Númenórë (91–105)',
         icon: '⚓',
         difficulty: 'Mítico',
         diffClass: 'diff-numenor',
-        levels: [25, 26, 27, 28],
+        levels: makeRange(91, 105),
       },
       {
-        name: 'Pixie Hollow',
+        name: 'Pixie Hollow (106–120)',
         icon: '🧚',
         difficulty: 'Mágico',
         diffClass: 'diff-pixie',
-        levels: [29, 30, 31, 32],
+        levels: makeRange(106, 120),
       },
       {
-        name: 'Nunca Jamás',
+        name: 'Nunca Jamás (121–135)',
         icon: '🏴‍☠️',
         difficulty: 'Heroico',
         diffClass: 'diff-neverland',
-        levels: [33, 34, 35, 36],
+        levels: makeRange(121, 135),
       },
       {
-        name: 'Monte Vesubio',
+        name: 'Monte Vesubio (136–150)',
         icon: '🔮',
         difficulty: 'Arcano',
         diffClass: 'diff-vesubio',
-        levels: [37, 38, 39, 40],
+        levels: makeRange(136, 150),
       },
     ];
 
-    // Generate Tierras Infinitas chapters of 15 levels each (no upper level cap)
-    const highestTarget = Math.max(41, game.maxLevel + 1, game.currentLevel);
-    const totalChapters = Math.floor((highestTarget - 41) / INFINITE_CHAPTER_SIZE) + 1;
+    const groups: BiomeGroupConfig[] = baseBiomes.map((b) => {
+      const startLvl = b.levels[0];
+      const endLvl = b.levels[b.levels.length - 1];
+      const containsCurrent = game.currentLevel >= startLvl && game.currentLevel <= endLvl;
+      return {
+        ...b,
+        defaultCollapsed: !containsCurrent,
+      };
+    });
+
+    // Generate Tierras Infinitas chapters of 15 levels each starting at level 151 (no upper level cap)
+    const highestTarget = Math.max(INFINITE_START_LEVEL, game.maxLevel + 1, game.currentLevel);
+    const totalChapters = Math.floor((highestTarget - INFINITE_START_LEVEL) / INFINITE_CHAPTER_SIZE) + 1;
 
     for (let c = 0; c < totalChapters; c++) {
-      const startLvl = 41 + c * INFINITE_CHAPTER_SIZE;
+      const startLvl = INFINITE_START_LEVEL + c * INFINITE_CHAPTER_SIZE;
       const endLvl = startLvl + INFINITE_CHAPTER_SIZE - 1;
-      const chapterLevels: number[] = [];
-      for (let i = startLvl; i <= endLvl; i++) {
-        chapterLevels.push(i);
-      }
+      const chapterLevels = makeRange(startLvl, endLvl);
 
       const emoteSet = getEmoteSetForLevel(startLvl);
       const containsCurrent = game.currentLevel >= startLvl && game.currentLevel <= endLvl;
-      const isLatestChapter = c === totalChapters - 1;
-      const shouldCollapse =
-        totalChapters > 1 && !containsCurrent && !(game.currentLevel <= 40 && isLatestChapter);
 
       groups.push({
         name: `Tierras Infinitas · Cap. ${c + 1} (${startLvl}–${endLvl})`,
@@ -490,7 +507,7 @@ window.addEventListener('DOMContentLoaded', () => {
         diffClass: 'diff-infinite',
         levels: chapterLevels,
         isInfiniteChapter: true,
-        defaultCollapsed: shouldCollapse,
+        defaultCollapsed: !containsCurrent,
       });
     }
 
@@ -503,7 +520,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     for (const group of getBiomeGroups()) {
       const card = document.createElement('div');
-      card.className = `biome-group-card${group.defaultCollapsed ? ' collapsed' : ''}${group.isInfiniteChapter ? ' infinite-chapter-card' : ''}`;
+      card.className = `biome-group-card infinite-chapter-card${group.defaultCollapsed ? ' collapsed' : ''}`;
 
       const header = document.createElement('div');
       header.className = 'biome-group-header';
@@ -511,20 +528,16 @@ window.addEventListener('DOMContentLoaded', () => {
       const title = document.createElement('div');
       title.className = 'biome-group-title';
 
-      if (group.isInfiniteChapter) {
-        const chevron = document.createElement('span');
-        chevron.className = 'biome-group-chevron';
-        chevron.textContent = group.defaultCollapsed ? '▸' : '▾';
-        title.appendChild(chevron);
-        title.appendChild(document.createTextNode(`${group.icon} ${group.name}`));
+      const chevron = document.createElement('span');
+      chevron.className = 'biome-group-chevron';
+      chevron.textContent = group.defaultCollapsed ? '▸' : '▾';
+      title.appendChild(chevron);
+      title.appendChild(document.createTextNode(`${group.icon} ${group.name}`));
 
-        header.addEventListener('click', () => {
-          const isCollapsed = card.classList.toggle('collapsed');
-          chevron.textContent = isCollapsed ? '▸' : '▾';
-        });
-      } else {
-        title.textContent = `${group.icon} ${group.name}`;
-      }
+      header.addEventListener('click', () => {
+        const isCollapsed = card.classList.toggle('collapsed');
+        chevron.textContent = isCollapsed ? '▸' : '▾';
+      });
 
       const badge = document.createElement('span');
       badge.className = `biome-group-badge ${group.diffClass}`;
@@ -535,7 +548,7 @@ window.addEventListener('DOMContentLoaded', () => {
       card.appendChild(header);
 
       const grid = document.createElement('div');
-      grid.className = `biome-levels-grid${group.isInfiniteChapter ? ' grid-5' : ''}`;
+      grid.className = 'biome-levels-grid grid-5';
 
       for (const lvl of group.levels) {
         const btn = document.createElement('button');
