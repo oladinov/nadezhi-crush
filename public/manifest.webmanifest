@@ -4,7 +4,7 @@
   "description": "Juego Match-3 determinista en Three.js ambientado en reinos de fantasía.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0b0f19",
   "theme_color": "#0b0f19",
   "categories": ["games", "puzzle"],

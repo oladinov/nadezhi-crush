@@ -981,6 +981,9 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   const checkLiveStatus = async () => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return;
+    }
     try {
       const res = await fetch(`https://decapi.me/twitch/uptime/${TWITCH_CHANNEL}?_t=${Date.now()}`);
       if (!res.ok) return;
@@ -1027,4 +1030,18 @@ window.addEventListener('DOMContentLoaded', () => {
   // Run initial check after 2.5s, then recheck every 4 minutes
   setTimeout(checkLiveStatus, 2500);
   setInterval(checkLiveStatus, 4 * 60 * 1000);
+  window.addEventListener('online', checkLiveStatus);
+
+  // ==========================================
+  // SERVICE WORKER REGISTRATION (100% OFFLINE)
+  // ==========================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .catch(() => {
+          // Ignore registration errors in restricted environments
+        });
+    });
+  }
 });
