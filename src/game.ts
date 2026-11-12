@@ -2,6 +2,7 @@ import confetti from 'canvas-confetti';
 import { CoreEngine } from './core/resolver';
 import { Cell, GemColor, GoalProgress, TurnResult } from './core/types';
 import { cloneGoalProgress } from './core/goals';
+import { getSavedLevelProgress, saveLevelProgress } from './core/scores';
 import { getLevelConfig } from './levels/generator';
 import { GameScene } from './view/scene';
 import { GemSkinMode, GemViewManager } from './view/gemViews';
@@ -185,39 +186,17 @@ export class Match3Game {
     this.initLevel(this.currentLevel);
   }
 
-  private loadSavedProgress() {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const savedCur = localStorage.getItem('nadezhi_current_level');
-        const savedMax = localStorage.getItem('nadezhi_max_level');
-        if (savedCur) {
-          const curNum = parseInt(savedCur, 10);
-          if (!isNaN(curNum) && curNum >= 1) this.currentLevel = Math.min(curNum, 10000);
-        }
-        if (savedMax) {
-          const maxNum = parseInt(savedMax, 10);
-          if (!isNaN(maxNum) && maxNum >= 1) this.maxLevel = Math.min(maxNum, 10000);
-        }
-        this.maxLevel = Math.max(this.maxLevel, this.currentLevel);
-      }
-    } catch {
-      this.maxLevel = 1;
-      this.currentLevel = 1;
-    }
+  public loadSavedProgress() {
+    const progress = getSavedLevelProgress();
+    this.currentLevel = progress.currentLevel;
+    this.maxLevel = progress.maxLevel;
   }
 
   public async initLevel(levelNumber: number) {
-    this.currentLevel = levelNumber;
-    this.maxLevel = Math.max(this.maxLevel, levelNumber);
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem('nadezhi_current_level', this.currentLevel.toString());
-        localStorage.setItem('nadezhi_max_level', this.maxLevel.toString());
-      }
-    } catch {
-      // Ignore if localStorage unavailable
-    }
-    const config = getLevelConfig(levelNumber);
+    const saved = saveLevelProgress(levelNumber, Math.max(this.maxLevel, levelNumber));
+    this.currentLevel = saved.currentLevel;
+    this.maxLevel = saved.maxLevel;
+    const config = getLevelConfig(this.currentLevel);
 
     const previousSkin: GemSkinMode = this.gemManager ? this.gemManager.skinMode : 'emotes';
 
@@ -236,7 +215,7 @@ export class Match3Game {
 
     // 2. Initialize Scene and View Systems (empty board grid is rendered)
     this.scene = new GameScene(this.container, config.rows, config.cols);
-    const emoteSet = getEmoteSetForLevel(levelNumber);
+    const emoteSet = getEmoteSetForLevel(this.currentLevel);
     this.gemManager = new GemViewManager(emoteSet.colors.map((c) => c.emoteIcon));
     this.gemManager.setSkinMode(previousSkin);
     this.fx = new FXManager(this.scene);
@@ -311,14 +290,9 @@ export class Match3Game {
       if (result.outcome === 'won') {
         this.notifyUI(this.core.progress.score, this.core.progress);
         this.state = 'LevelComplete';
-        this.maxLevel = Math.max(this.maxLevel, this.currentLevel + 1);
-        try {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            localStorage.setItem('nadezhi_max_level', this.maxLevel.toString());
-          }
-        } catch {
-          // Ignore
-        }
+        const saved = saveLevelProgress(this.currentLevel, Math.max(this.maxLevel, this.currentLevel + 1));
+        this.currentLevel = saved.currentLevel;
+        this.maxLevel = saved.maxLevel;
         sound.playWin();
         confetti({
           particleCount: 80,

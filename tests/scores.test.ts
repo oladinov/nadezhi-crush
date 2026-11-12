@@ -4,12 +4,21 @@ import {
   getPlayerName,
   setPlayerName,
   getLevelRecord,
+  getAllLevelRecords,
   saveLevelScore,
   getHallOfFame,
   getPlayerStats,
   resetScores,
   isHallOfFameEnabled,
   setHallOfFameEnabled,
+  getSavedLevelProgress,
+  saveLevelProgress,
+  verifyStorageIntegrity,
+  computeStorageHash,
+  STORAGE_KEY_CURRENT_LEVEL,
+  STORAGE_KEY_MAX_LEVEL,
+  STORAGE_KEY_RECORDS,
+  STORAGE_KEY_INTEGRITY_HASH,
 } from '../src/core/scores';
 
 describe('Scores and Hall of Fame System', () => {
@@ -196,6 +205,108 @@ describe('Scores and Hall of Fame System', () => {
       expect(stats.totalScore).toBe(0);
       expect(stats.threeStarCount).toBe(0);
       expect(stats.bestSingleScore).toBe(0);
+    });
+  });
+
+  describe('Unlimited Level Progression & Storage Integrity Hash', () => {
+    let mockStore: Record<string, string> = {};
+
+    beforeEach(() => {
+      mockStore = {};
+      (globalThis as any).localStorage = {
+        getItem: (k: string) => (k in mockStore ? mockStore[k] : null),
+        setItem: (k: string, v: string) => {
+          mockStore[k] = String(v);
+        },
+        removeItem: (k: string) => {
+          delete mockStore[k];
+        },
+      };
+      resetScores();
+    });
+
+    it('allows progressing and saving records well beyond level 10,000 without any artificial cap', () => {
+      const progress = saveLevelProgress(15420, 15420);
+      expect(progress.currentLevel).toBe(15420);
+      expect(progress.maxLevel).toBe(15420);
+
+      const loaded = getSavedLevelProgress();
+      expect(loaded.currentLevel).toBe(15420);
+      expect(loaded.maxLevel).toBe(15420);
+
+      saveLevelScore(15420, 45000, 20000, 'Tierras Infinitas', '♾️');
+      const rec = getLevelRecord(15420);
+      expect(rec).not.toBeNull();
+      expect(rec?.level).toBe(15420);
+      expect(rec?.score).toBe(45000);
+      expect(rec?.stars).toBe(3);
+    });
+
+    it('migrates legacy unhashed progress on first load without losing data and seals it with a hash', () => {
+      // Simulate existing pre-hash device data in localStorage
+      mockStore[STORAGE_KEY_CURRENT_LEVEL] = '10000';
+      mockStore[STORAGE_KEY_MAX_LEVEL] = '10000';
+      mockStore[STORAGE_KEY_RECORDS] = JSON.stringify({
+        10000: {
+          level: 10000,
+          score: 38000,
+          stars: 3,
+          date: '11 nov 2026',
+          timestamp: 1794355200000,
+        },
+      });
+      expect(mockStore[STORAGE_KEY_INTEGRITY_HASH]).toBeUndefined();
+
+      // First load should preserve progress and generate the integrity hash
+      const loaded = getSavedLevelProgress();
+      expect(loaded.currentLevel).toBe(10000);
+      expect(loaded.maxLevel).toBe(10000);
+      expect(mockStore[STORAGE_KEY_INTEGRITY_HASH]).toBeDefined();
+      expect(mockStore[STORAGE_KEY_INTEGRITY_HASH]).toBe(computeStorageHash());
+
+      const rec = getLevelRecord(10000);
+      expect(rec?.score).toBe(38000);
+    });
+
+    it('resets all progress to default values if maxLevel or currentLevel is manually altered in localStorage', () => {
+      saveLevelProgress(250, 250);
+      saveLevelScore(250, 30000, 15000, 'Tierras Infinitas', '♾️');
+      setPlayerName('Oscar');
+
+      // Simulate manual tampering in DevTools localStorage
+      mockStore[STORAGE_KEY_MAX_LEVEL] = '99999';
+
+      const afterTamper = getSavedLevelProgress();
+      expect(afterTamper.currentLevel).toBe(1);
+      expect(afterTamper.maxLevel).toBe(1);
+      expect(getAllLevelRecords()).toEqual({});
+      expect(getPlayerName()).toBe('Aventurero');
+    });
+
+    it('resets all progress to default values if level records are manually altered in localStorage', () => {
+      saveLevelProgress(42, 42);
+      saveLevelScore(42, 12000, 10000, 'Caverna de Cristales', '🔮');
+
+      // Tamper with the score in localStorage without updating hash
+      const tamperedRecords = JSON.parse(mockStore[STORAGE_KEY_RECORDS]);
+      tamperedRecords['42'].score = 999999;
+      mockStore[STORAGE_KEY_RECORDS] = JSON.stringify(tamperedRecords);
+
+      expect(getAllLevelRecords()).toEqual({});
+      const progress = getSavedLevelProgress();
+      expect(progress.currentLevel).toBe(1);
+      expect(progress.maxLevel).toBe(1);
+    });
+
+    it('resets all progress to default values if integrity hash is deleted or modified after sealing', () => {
+      saveLevelProgress(120, 120);
+      saveLevelScore(120, 25000, 12000, 'Pixie Hollow', '🧚');
+
+      // Delete the hash during the session and try to read
+      delete mockStore[STORAGE_KEY_INTEGRITY_HASH];
+      expect(verifyStorageIntegrity()).toBe(false);
+      expect(getSavedLevelProgress()).toEqual({ currentLevel: 1, maxLevel: 1 });
+      expect(getAllLevelRecords()).toEqual({});
     });
   });
 });

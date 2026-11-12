@@ -515,6 +515,7 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   const openLevelSelect = () => {
+    game.loadSavedProgress();
     levelSelectContainer.replaceChildren();
     const records = getAllLevelRecords();
 
@@ -596,6 +597,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // HIGH SCORES & LEADERBOARD CONTROLLER
   // ==========================================
   const openLeaderboard = () => {
+    game.loadSavedProgress();
     const hofEnabled = isHallOfFameEnabled();
     const currentPlayer = getPlayerName();
     if (inputPlayerName) {
