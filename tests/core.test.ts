@@ -156,7 +156,15 @@ describe('Directed Fusion Matrix Tests', () => {
     const res = engine.resolveMove(a, b);
     expect(res.accepted).toBe(true);
     expect(res.progress.detonated).toBeGreaterThanOrEqual(2);
-    expect(res.steps.some((s) => s.type === 'detonate')).toBe(true);
+    const detonateStep = res.steps.find((s) => s.type === 'detonate');
+    expect(detonateStep).toBeDefined();
+    if (detonateStep && detonateStep.type === 'detonate') {
+      expect(detonateStep.isCrossBlast).toBe(true);
+      expect(detonateStep.gem.kind).toBe('bomb');
+      if (detonateStep.gem.kind === 'bomb') {
+        expect(detonateStep.gem.tier).toBe(2);
+      }
+    }
   });
 
   it('Case 2: Rainbow + Normal destroys all gems of that color and clears the rainbow gem', () => {

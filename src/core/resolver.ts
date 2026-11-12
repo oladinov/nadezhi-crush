@@ -262,7 +262,7 @@ export class CoreEngine implements GridCore {
       steps.push({
         type: 'detonate',
         origin: center,
-        gem: gemB,
+        gem: gemB.kind === 'bomb' ? { ...gemB, tier: 2 } : gemB,
         affected,
         wave: 1,
         trigger: { type: 'fusion' },

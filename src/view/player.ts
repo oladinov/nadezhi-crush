@@ -191,7 +191,8 @@ export class TimelinePlayer {
 
   private async handleDetonate(step: Extract<Step, { type: 'detonate' }>): Promise<void> {
     const originPos = this.scene.cellToWorld(step.origin.r, step.origin.c);
-    const tier = (step.gem.kind === 'bomb' ? step.gem.tier : 1) as 1 | 2;
+    const tier: 1 | 2 =
+      step.isCrossBlast || (step.gem.kind === 'bomb' && step.gem.tier === 2) ? 2 : 1;
 
     // 0. Illuminate what triggered this bomb (match vs chain explosion)
     if (step.trigger?.type === 'match') {
