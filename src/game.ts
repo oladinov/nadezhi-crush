@@ -489,8 +489,8 @@ export class Match3Game {
 
   public destroy() {
     this.clearInactivityTimer();
-    this.fx.clearAll();
-    this.gemManager.clearAll();
+    this.fx.destroy();
+    this.gemManager.destroy();
     this.input.destroy();
     this.player.destroy();
     this.scene.destroy();

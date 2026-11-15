@@ -16,6 +16,7 @@ import {
   areCellsAdjacent,
   cloneBoard,
   computeBoardHash,
+  createEmptyBoard,
   isInside,
   populateInitialBoard,
 } from './board';
@@ -184,31 +185,7 @@ export class CoreEngine implements GridCore {
     if (fusion) {
       this.resolveFusion(fusion, a, b, gemA, gemB, steps);
     } else {
-      let cascade = 1;
-      let matches = initialMatches;
-      const MAX_SAFETY_CASCADES = 50;
-      while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
-        this.resolveWave(matches, cascade, steps);
-
-        const combo = getComboRating(cascade);
-        if (combo) {
-          this.progress.score += combo.points;
-          steps.push({
-            type: 'combo',
-            cascade,
-            title: combo.title,
-            tier: combo.tier,
-            points: combo.points,
-            scoreAfter: this.progress.score,
-            progressAfter: cloneGoalProgress(this.progress),
-          });
-        }
-
-        this.applyGravity(steps);
-        this.applyRefill(steps, cascade);
-        cascade++;
-        matches = evaluateMatches(this.board);
-      }
+      this.resolveCascades(initialMatches, 1, steps);
     }
 
     // After resolution, check if any valid moves remain. If none, shuffle.
@@ -248,7 +225,7 @@ export class CoreEngine implements GridCore {
   ): void {
     const rows = this.board.length;
     const cols = this.board[0].length;
-    let cascade = 1;
+    const cascade = 1;
 
     if (fusion.type === 'bomb_bomb') {
       // Bomb + Bomb: Row + Col + 5x5 centered at b
@@ -495,9 +472,21 @@ export class CoreEngine implements GridCore {
     this.applyRefill(steps, cascade);
 
     // Check subsequent cascades
-    cascade++;
-    let matches = evaluateMatches(this.board);
+    this.resolveCascades(evaluateMatches(this.board), cascade + 1, steps);
+  }
+
+  /**
+   * Resolves match waves and resulting cascades up to the safety cascade limit.
+   */
+  private resolveCascades(
+    initialMatches: MatchGroup[],
+    startCascade: number,
+    steps: Step[]
+  ): void {
+    let cascade = startCascade;
+    let matches = initialMatches;
     const MAX_SAFETY_CASCADES = 50;
+
     while (matches.length > 0 && cascade <= MAX_SAFETY_CASCADES) {
       this.resolveWave(matches, cascade, steps);
 
@@ -983,13 +972,13 @@ export class CoreEngine implements GridCore {
    */
   private ensureValidMovesRemain(steps: Step[]): void {
     const rows = this.board.length;
-    const cols = this.board[0].length;
-    const maxShuffleAttempts = 50;
-
+    const cols = rows > 0 ? this.board[0].length : 0;
+    if (rows * cols < 2) return;
     if (this.findValidMoves().length > 0) return;
 
-    // Map each existing gem ID to its current location before shuffle
+    // Map each existing gem ID to its current location and state before shuffle
     const prevLocation = new Map<number, Cell>();
+    const origById = new Map<number, Gem>();
     const baseGems: Gem[] = [];
 
     for (let r = 0; r < rows; r++) {
@@ -997,52 +986,631 @@ export class CoreEngine implements GridCore {
         const gem = this.board[r][c];
         if (gem) {
           prevLocation.set(gem.id, { r, c });
+          origById.set(gem.id, gem);
           baseGems.push(gem);
         }
       }
     }
 
+    if (baseGems.length < 2) return;
+
+    // Phase 1: Fast random Fisher-Yates attempts (preserves exact RNG progression when successful)
+    const maxShuffleAttempts = 50;
     for (let attempt = 0; attempt < maxShuffleAttempts; attempt++) {
       const gems = [...baseGems];
-      // Fisher-Yates shuffle using shuffleRng
-      for (let i = gems.length - 1; i > 0; i--) {
-        const j = this.rngManager.shuffleRng.int(i + 1);
-        const temp = gems[i];
-        gems[i] = gems[j];
-        gems[j] = temp;
-      }
+      this.shuffleArrayInPlace(gems);
+      const candidate = this.buildCandidateFromGems(gems);
 
-      // Build candidate board without mutating this.board
-      const candidate: Board = cloneBoard(this.board);
-      const shuffleMoves: { id: number; from: Cell; to: Cell }[] = [];
-      let idx = 0;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const newGem = gems[idx];
-          const oldGem = this.board[r][c];
-          if (oldGem && newGem.id !== oldGem.id) {
-            const fromCell = prevLocation.get(newGem.id) ?? { r, c };
-            shuffleMoves.push({
-              id: newGem.id,
-              from: fromCell,
-              to: { r, c },
-            });
-          }
-          candidate[r][c] = newGem;
-          idx++;
-        }
-      }
-
-      // Check candidate board
-      const accidentalMatches = evaluateMatches(candidate);
-      if (accidentalMatches.length === 0 && findValidMoves(candidate).length > 0) {
-        this.board = candidate;
-        steps.push({
-          type: 'shuffle',
-          moves: shuffleMoves,
-        });
+      if (evaluateMatches(candidate).length === 0 && findValidMoves(candidate).length > 0) {
+        this.commitShuffledBoard(candidate, prevLocation, steps);
         return;
       }
     }
+
+    // Phase 2: Constructive balanced placement + swap-repair preserving all existing gems
+    let matchFreeCandidate: Board | null = null;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = this.buildBalancedCandidate(baseGems);
+      if (this.repairMatches(candidate)) {
+        if (!matchFreeCandidate) matchFreeCandidate = cloneBoard(candidate);
+        if (findValidMoves(candidate).length > 0 || this.injectValidMove(candidate)) {
+          this.commitShuffledBoard(candidate, prevLocation, steps);
+          return;
+        }
+      }
+    }
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const gems = [...baseGems];
+      this.shuffleArrayInPlace(gems);
+      const candidate = this.buildCandidateFromGems(gems);
+      if (this.repairMatches(candidate)) {
+        if (!matchFreeCandidate) matchFreeCandidate = cloneBoard(candidate);
+        if (findValidMoves(candidate).length > 0 || this.injectValidMove(candidate)) {
+          this.commitShuffledBoard(candidate, prevLocation, steps);
+          return;
+        }
+      }
+    }
+
+    // Phase 3: Guaranteed fallback when no pure permutation of baseGems can yield a valid move
+    const fallback = this.buildFallbackBoard(baseGems, matchFreeCandidate);
+    this.commitShuffledBoard(fallback, prevLocation, steps, origById);
+  }
+
+  private shuffleArrayInPlace<T>(arr: T[]): void {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = this.rngManager.shuffleRng.int(i + 1);
+      const temp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = temp;
+    }
+  }
+
+  private buildCandidateFromGems(gems: Gem[]): Board {
+    const rows = this.board.length;
+    const cols = this.board[0].length;
+    const candidate = createEmptyBoard(rows, cols);
+    let idx = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (this.board[r][c] !== null && idx < gems.length) {
+          candidate[r][c] = gems[idx++];
+        }
+      }
+    }
+    return candidate;
+  }
+
+  private gemsEquivalent(a: Gem, b: Gem): boolean {
+    if (a.kind !== b.kind) return false;
+    if (a.kind === 'rainbow') return true;
+    if (a.kind === 'bomb' && b.kind === 'bomb') {
+      return a.color === b.color && a.tier === b.tier;
+    }
+    if (a.kind === 'normal' && b.kind === 'normal') {
+      return a.color === b.color;
+    }
+    return false;
+  }
+
+  private commitShuffledBoard(
+    candidate: Board,
+    prevLocation: Map<number, Cell>,
+    steps: Step[],
+    origById?: Map<number, Gem>
+  ): void {
+    const rows = this.board.length;
+    const cols = this.board[0].length;
+    const shuffleMoves: { id: number; from: Cell; to: Cell }[] = [];
+    const transformedCells: Cell[] = [];
+    const transformedGems: Gem[] = [];
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const newGem = candidate[r][c];
+        const oldGem = this.board[r][c];
+        if (!newGem) continue;
+
+        if (oldGem && newGem.id !== oldGem.id) {
+          const fromCell = prevLocation.get(newGem.id) ?? { r, c };
+          shuffleMoves.push({
+            id: newGem.id,
+            from: fromCell,
+            to: { r, c },
+          });
+        }
+
+        if (origById) {
+          const origGem = origById.get(newGem.id);
+          if (origGem && !this.gemsEquivalent(origGem, newGem)) {
+            transformedCells.push({ r, c });
+            transformedGems.push(newGem);
+          }
+        }
+      }
+    }
+
+    this.board = candidate;
+    steps.push({
+      type: 'shuffle',
+      moves: shuffleMoves,
+    });
+
+    if (transformedCells.length > 0) {
+      steps.push({
+        type: 'transform',
+        cells: transformedCells,
+        to: transformedGems,
+        scoreAfter: this.progress.score,
+        progressAfter: cloneGoalProgress(this.progress),
+      });
+    }
+  }
+
+  private hasMatchAt(board: Board, r: number, c: number): boolean {
+    const gem = board[r][c];
+    if (!gem || gem.kind === 'rainbow') return false;
+    const color = gem.color;
+    const rows = board.length;
+    const cols = board[0].length;
+
+    const sameColor = (rr: number, cc: number): boolean => {
+      if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) return false;
+      const g = board[rr][cc];
+      return g !== null && g.kind !== 'rainbow' && g.color === color;
+    };
+
+    if (sameColor(r, c - 1) && sameColor(r, c - 2)) return true;
+    if (sameColor(r, c + 1) && sameColor(r, c + 2)) return true;
+    if (sameColor(r, c - 1) && sameColor(r, c + 1)) return true;
+
+    if (sameColor(r - 1, c) && sameColor(r - 2, c)) return true;
+    if (sameColor(r + 1, c) && sameColor(r + 2, c)) return true;
+    if (sameColor(r - 1, c) && sameColor(r + 1, c)) return true;
+
+    return false;
+  }
+
+  private hasFinalizedMatchAt(
+    board: Board,
+    finalized: boolean[][],
+    r: number,
+    c: number,
+    gem: Gem
+  ): boolean {
+    if (gem.kind === 'rainbow') return false;
+    const color = gem.color;
+    const rows = board.length;
+    const cols = board[0].length;
+
+    const sameColorFinalized = (rr: number, cc: number): boolean => {
+      if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) return false;
+      if (!finalized[rr][cc]) return false;
+      const g = board[rr][cc];
+      return g !== null && g.kind !== 'rainbow' && g.color === color;
+    };
+
+    if (sameColorFinalized(r, c - 1) && sameColorFinalized(r, c - 2)) return true;
+    if (sameColorFinalized(r, c + 1) && sameColorFinalized(r, c + 2)) return true;
+    if (sameColorFinalized(r, c - 1) && sameColorFinalized(r, c + 1)) return true;
+
+    if (sameColorFinalized(r - 1, c) && sameColorFinalized(r - 2, c)) return true;
+    if (sameColorFinalized(r + 1, c) && sameColorFinalized(r + 2, c)) return true;
+    if (sameColorFinalized(r - 1, c) && sameColorFinalized(r + 1, c)) return true;
+
+    return false;
+  }
+
+  private buildBalancedCandidate(baseGems: Gem[]): Board {
+    const rows = this.board.length;
+    const cols = this.board[0].length;
+    const candidate = createEmptyBoard(rows, cols);
+
+    const rainbows: Gem[] = [];
+    const colorBuckets: Gem[][] = [[], [], [], [], []];
+    for (const gem of baseGems) {
+      if (gem.kind === 'rainbow') {
+        rainbows.push(gem);
+      } else {
+        colorBuckets[gem.color].push(gem);
+      }
+    }
+
+    this.shuffleArrayInPlace(rainbows);
+    for (const bucket of colorBuckets) {
+      this.shuffleArrayInPlace(bucket);
+    }
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (this.board[r][c] === null) continue;
+
+        const legalColors: GemColor[] = [];
+        for (let clr = 0; clr < 5; clr++) {
+          if (colorBuckets[clr].length === 0) continue;
+          const gClr = clr as GemColor;
+          let blocked = false;
+          if (c >= 2) {
+            const g1 = candidate[r][c - 1];
+            const g2 = candidate[r][c - 2];
+            if (g1 && g2 && g1.kind !== 'rainbow' && g2.kind !== 'rainbow' && g1.color === gClr && g2.color === gClr) {
+              blocked = true;
+            }
+          }
+          if (!blocked && r >= 2) {
+            const g1 = candidate[r - 1][c];
+            const g2 = candidate[r - 2][c];
+            if (g1 && g2 && g1.kind !== 'rainbow' && g2.kind !== 'rainbow' && g1.color === gClr && g2.color === gClr) {
+              blocked = true;
+            }
+          }
+          if (!blocked) {
+            legalColors.push(gClr);
+          }
+        }
+
+        if (legalColors.length > 0) {
+          let maxCount = 0;
+          for (const clr of legalColors) {
+            if (colorBuckets[clr].length > maxCount) {
+              maxCount = colorBuckets[clr].length;
+            }
+          }
+          const topColors = legalColors.filter((clr) => colorBuckets[clr].length === maxCount);
+          const chosenColor = topColors[this.rngManager.shuffleRng.int(topColors.length)];
+
+          if (rainbows.length > 0 && this.rngManager.shuffleRng.int(rows * cols) < rainbows.length) {
+            candidate[r][c] = rainbows.pop()!;
+          } else {
+            candidate[r][c] = colorBuckets[chosenColor].pop()!;
+          }
+        } else if (rainbows.length > 0) {
+          candidate[r][c] = rainbows.pop()!;
+        } else {
+          for (let clr = 0; clr < 5; clr++) {
+            if (colorBuckets[clr].length > 0) {
+              candidate[r][c] = colorBuckets[clr].pop()!;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return candidate;
+  }
+
+  private repairMatches(candidate: Board): boolean {
+    const rows = candidate.length;
+    const cols = candidate[0].length;
+    const total = rows * cols;
+    const maxSwaps = total * 2 + 1;
+
+    for (let step = 0; step < maxSwaps; step++) {
+      const matches = evaluateMatches(candidate);
+      if (matches.length === 0) return true;
+
+      let swapped = false;
+      for (const group of matches) {
+        const mid = Math.floor(group.cells.length / 2);
+        const orderedCells = [
+          group.cells[mid],
+          ...group.cells.filter((_, i) => i !== mid),
+        ];
+
+        for (const p of orderedCells) {
+          const gemP = candidate[p.r][p.c];
+          if (!gemP) continue;
+
+          const offset = this.rngManager.shuffleRng.int(total);
+          for (let k = 0; k < total; k++) {
+            const idx = (offset + k) % total;
+            const r2 = Math.floor(idx / cols);
+            const c2 = idx % cols;
+            if (r2 === p.r && c2 === p.c) continue;
+            const gemQ = candidate[r2][c2];
+            if (!gemQ) continue;
+            if (gemP.kind !== 'rainbow' && gemQ.kind !== 'rainbow' && gemP.color === gemQ.color) {
+              continue;
+            }
+
+            candidate[p.r][p.c] = gemQ;
+            candidate[r2][c2] = gemP;
+            if (!this.hasMatchAt(candidate, p.r, p.c) && !this.hasMatchAt(candidate, r2, c2)) {
+              swapped = true;
+              break;
+            }
+            candidate[p.r][p.c] = gemP;
+            candidate[r2][c2] = gemQ;
+          }
+          if (swapped) break;
+        }
+        if (swapped) break;
+      }
+
+      if (!swapped) return false;
+    }
+
+    return evaluateMatches(candidate).length === 0;
+  }
+
+  private getMoveInjectionPatterns(
+    board: Board
+  ): { a: Cell; b: Cell; p: Cell; c: Cell }[] {
+    const rows = board.length;
+    const cols = board[0].length;
+    const patterns: { a: Cell; b: Cell; p: Cell; c: Cell }[] = [];
+    const dirs = [
+      { dr: 0, dc: 1 },
+      { dr: 1, dc: 0 },
+      { dr: 0, dc: -1 },
+      { dr: -1, dc: 0 },
+    ];
+
+    const addLine = (l0: Cell, l1: Cell, l2: Cell) => {
+      if (!board[l0.r][l0.c] || !board[l1.r][l1.c] || !board[l2.r][l2.c]) return;
+      const line = [l0, l1, l2];
+      for (let pi = 0; pi < 3; pi++) {
+        const p = line[pi];
+        const a = line[(pi + 1) % 3];
+        const b = line[(pi + 2) % 3];
+        for (const d of dirs) {
+          const c: Cell = { r: p.r + d.dr, c: p.c + d.dc };
+          if (!isInside(board, c) || !board[c.r][c.c]) continue;
+          if (
+            (c.r === l0.r && c.c === l0.c) ||
+            (c.r === l1.r && c.c === l1.c) ||
+            (c.r === l2.r && c.c === l2.c)
+          ) {
+            continue;
+          }
+          patterns.push({ a, b, p, c });
+        }
+      }
+    };
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (c + 2 < cols) {
+          addLine({ r, c }, { r, c: c + 1 }, { r, c: c + 2 });
+        }
+        if (r + 2 < rows) {
+          addLine({ r, c }, { r: r + 1, c }, { r: r + 2, c });
+        }
+      }
+    }
+
+    return patterns;
+  }
+
+  private injectValidMove(candidate: Board): boolean {
+    const rows = candidate.length;
+    const cols = candidate[0].length;
+
+    // Try pairing two existing bombs adjacent to form a bomb+bomb fusion move
+    const bombs: Cell[] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const g = candidate[r][c];
+        if (g && g.kind === 'bomb') {
+          bombs.push({ r, c });
+        }
+      }
+    }
+    if (bombs.length >= 2) {
+      const dirs = [
+        { dr: -1, dc: 0 },
+        { dr: 1, dc: 0 },
+        { dr: 0, dc: -1 },
+        { dr: 0, dc: 1 },
+      ];
+      for (const b1 of bombs) {
+        for (const d of dirs) {
+          const nb: Cell = { r: b1.r + d.dr, c: b1.c + d.dc };
+          if (!isInside(candidate, nb)) continue;
+          const nbGem = candidate[nb.r][nb.c];
+          if (!nbGem) continue;
+          for (const b2 of bombs) {
+            if ((b2.r === b1.r && b2.c === b1.c) || (b2.r === nb.r && b2.c === nb.c)) continue;
+            const b2Gem = candidate[b2.r][b2.c]!;
+            candidate[nb.r][nb.c] = b2Gem;
+            candidate[b2.r][b2.c] = nbGem;
+            if (
+              !this.hasMatchAt(candidate, nb.r, nb.c) &&
+              !this.hasMatchAt(candidate, b2.r, b2.c) &&
+              findValidMoves(candidate).length > 0
+            ) {
+              return true;
+            }
+            candidate[nb.r][nb.c] = nbGem;
+            candidate[b2.r][b2.c] = b2Gem;
+          }
+        }
+      }
+    }
+
+    const colorCounts = [0, 0, 0, 0, 0];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const g = candidate[r][c];
+        if (g && g.kind !== 'rainbow') {
+          colorCounts[g.color]++;
+        }
+      }
+    }
+    const eligibleColors = ([0, 1, 2, 3, 4] as GemColor[])
+      .filter((clr) => colorCounts[clr] >= 3)
+      .sort((a, b) => colorCounts[b] - colorCounts[a]);
+    if (eligibleColors.length === 0) return false;
+
+    const patterns = this.getMoveInjectionPatterns(candidate);
+    if (patterns.length === 0) return false;
+
+    const patternOffset = this.rngManager.shuffleRng.int(patterns.length);
+    for (const targetColor of eligibleColors) {
+      for (let k = 0; k < patterns.length; k++) {
+        const pat = patterns[(patternOffset + k) % patterns.length];
+        const trial = cloneBoard(candidate);
+        const reserved = new Set<string>([
+          `${pat.a.r},${pat.a.c}`,
+          `${pat.b.r},${pat.b.c}`,
+          `${pat.p.r},${pat.p.c}`,
+          `${pat.c.r},${pat.c.c}`,
+        ]);
+
+        const findSwapSource = (
+          slot: Cell,
+          predicate: (g: Gem) => boolean
+        ): Cell | null => {
+          const slotGem = trial[slot.r][slot.c]!;
+          let fallbackSrc: Cell | null = null;
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              if (reserved.has(`${r},${c}`)) continue;
+              const g = trial[r][c];
+              if (!g || !predicate(g)) continue;
+              if (!fallbackSrc) fallbackSrc = { r, c };
+              trial[slot.r][slot.c] = g;
+              trial[r][c] = slotGem;
+              const clean = !this.hasMatchAt(trial, r, c);
+              trial[slot.r][slot.c] = slotGem;
+              trial[r][c] = g;
+              if (clean) return { r, c };
+            }
+          }
+          return fallbackSrc;
+        };
+
+        let ok = true;
+        for (const slot of [pat.a, pat.b, pat.c]) {
+          const cur = trial[slot.r][slot.c]!;
+          if (cur.kind !== 'rainbow' && cur.color === targetColor) continue;
+          const src = findSwapSource(slot, (g) => g.kind !== 'rainbow' && g.color === targetColor);
+          if (!src) {
+            ok = false;
+            break;
+          }
+          trial[slot.r][slot.c] = trial[src.r][src.c];
+          trial[src.r][src.c] = cur;
+        }
+        if (!ok) continue;
+
+        const pGem = trial[pat.p.r][pat.p.c]!;
+        if (pGem.kind !== 'rainbow' && pGem.color === targetColor) {
+          const src = findSwapSource(pat.p, (g) => g.kind === 'rainbow' || g.color !== targetColor);
+          if (!src) continue;
+          trial[pat.p.r][pat.p.c] = trial[src.r][src.c];
+          trial[src.r][src.c] = pGem;
+        }
+
+        if (evaluateMatches(trial).length === 0 && findValidMoves(trial).length > 0) {
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              candidate[r][c] = trial[r][c];
+            }
+          }
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private buildFallbackBoard(baseGems: Gem[], matchFreeCandidate: Board | null): Board {
+    const rows = this.board.length;
+    const cols = this.board[0].length;
+
+    // Case 3A: Patch an already match-free board by minimally recoloring 1-4 normal gems
+    if (matchFreeCandidate) {
+      const patterns = this.getMoveInjectionPatterns(matchFreeCandidate);
+      if (patterns.length > 0) {
+        const normalPatterns = patterns.filter((pat) => {
+          const cells = [pat.a, pat.b, pat.p, pat.c];
+          return cells.every((cell) => matchFreeCandidate[cell.r][cell.c]?.kind === 'normal');
+        });
+        const pool = normalPatterns.length > 0 ? normalPatterns : patterns;
+        const patOffset = this.rngManager.shuffleRng.int(pool.length);
+        const colorOffset = this.rngManager.shuffleRng.int(this.config.colors);
+
+        for (let k = 0; k < pool.length; k++) {
+          const pat = pool[(patOffset + k) % pool.length];
+          for (let ci = 0; ci < this.config.colors; ci++) {
+            const c0 = ((colorOffset + ci) % this.config.colors) as GemColor;
+            const c1 = ((c0 + 1) % this.config.colors) as GemColor;
+            const trial = cloneBoard(matchFreeCandidate);
+
+            for (const slot of [pat.a, pat.b, pat.c]) {
+              const g = trial[slot.r][slot.c]!;
+              trial[slot.r][slot.c] = { id: g.id, kind: 'normal', color: c0 };
+            }
+            const pGem = trial[pat.p.r][pat.p.c]!;
+            if (pGem.kind !== 'rainbow' && pGem.color === c0) {
+              trial[pat.p.r][pat.p.c] = { id: pGem.id, kind: 'normal', color: c1 };
+            }
+
+            if (evaluateMatches(trial).length === 0 && findValidMoves(trial).length > 0) {
+              return trial;
+            }
+          }
+        }
+      }
+    }
+
+    // Case 3B: Build a guaranteed match-free board with a seeded valid move (or rainbow on sub-3x2 boards)
+    const shuffled = [...baseGems];
+    this.shuffleArrayInPlace(shuffled);
+    const trial = this.buildCandidateFromGems(shuffled);
+    const finalized: boolean[][] = Array.from({ length: rows }, () => Array(cols).fill(false));
+    const patterns = this.getMoveInjectionPatterns(trial);
+
+    if (patterns.length > 0) {
+      const normalPattern = patterns.find((pat) =>
+        [pat.a, pat.b, pat.p, pat.c].every((cell) => trial[cell.r][cell.c]?.kind === 'normal')
+      );
+      const pat = normalPattern ?? patterns[0];
+      const c0 = this.rngManager.shuffleRng.int(this.config.colors) as GemColor;
+      const c1 = ((c0 + 1) % this.config.colors) as GemColor;
+
+      for (const slot of [pat.a, pat.b, pat.c]) {
+        const g = trial[slot.r][slot.c]!;
+        trial[slot.r][slot.c] = { id: g.id, kind: 'normal', color: c0 };
+        finalized[slot.r][slot.c] = true;
+      }
+      const pGem = trial[pat.p.r][pat.p.c]!;
+      trial[pat.p.r][pat.p.c] = { id: pGem.id, kind: 'normal', color: c1 };
+      finalized[pat.p.r][pat.p.c] = true;
+    }
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const gem = trial[r][c];
+        if (!gem || finalized[r][c]) continue;
+
+        if (!this.hasFinalizedMatchAt(trial, finalized, r, c, gem)) {
+          finalized[r][c] = true;
+          continue;
+        }
+
+        const allowedColors: GemColor[] = [];
+        for (let clr = 0; clr < this.config.colors; clr++) {
+          const gClr = clr as GemColor;
+          if (!this.hasFinalizedMatchAt(trial, finalized, r, c, { id: gem.id, kind: 'normal', color: gClr })) {
+            allowedColors.push(gClr);
+          }
+        }
+
+        if (allowedColors.length > 0) {
+          const chosen = allowedColors[this.rngManager.shuffleRng.int(allowedColors.length)];
+          trial[r][c] = { id: gem.id, kind: 'normal', color: chosen };
+        } else {
+          trial[r][c] = { id: gem.id, kind: 'rainbow' };
+        }
+        finalized[r][c] = true;
+      }
+    }
+
+    if (findValidMoves(trial).length === 0) {
+      // Degenerate tiny board (e.g. 1x2, 2x2, 1x3): convert one adjacent normal/non-rainbow gem to rainbow
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const gem = trial[r][c];
+          if (!gem || gem.kind === 'rainbow') continue;
+          const hasNeighbor =
+            (r + 1 < rows && trial[r + 1][c] !== null) ||
+            (r - 1 >= 0 && trial[r - 1][c] !== null) ||
+            (c + 1 < cols && trial[r][c + 1] !== null) ||
+            (c - 1 >= 0 && trial[r][c - 1] !== null);
+          if (hasNeighbor) {
+            trial[r][c] = { id: gem.id, kind: 'rainbow' };
+            return trial;
+          }
+        }
+      }
+    }
+
+    return trial;
   }
 }

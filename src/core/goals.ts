@@ -23,28 +23,7 @@ export function cloneGoalProgress(p: GoalProgress): GoalProgress {
 }
 
 export function isGoalMet(goal: Goal, progress: GoalProgress): boolean {
-  switch (goal.type) {
-    case 'score':
-      return progress.score >= goal.target;
-    case 'collect':
-      return (progress.collected[goal.color] ?? 0) >= goal.count;
-    case 'detonate':
-      return progress.detonated >= goal.count;
-    case 'create':
-      if (goal.kind === 'rainbow') {
-        return progress.created.rainbow >= goal.count;
-      }
-      if (goal.kind === 'bomb') {
-        if (goal.tier === 1) {
-          return progress.created.bomb1 >= goal.count;
-        }
-        if (goal.tier === 2) {
-          return progress.created.bomb2 >= goal.count;
-        }
-        return progress.created.bomb1 + progress.created.bomb2 >= goal.count;
-      }
-      return false;
-  }
+  return getGoalStatus(goal, progress).completed;
 }
 
 export function areAllGoalsMet(goals: Goal[], progress: GoalProgress): boolean {

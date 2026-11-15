@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { CoreEngine } from '../src/core/resolver';
 import { hashString, Mulberry32 } from '../src/core/rng';
-import { LevelConfig, Board } from '../src/core/types';
+import { LevelConfig, Board, Gem, GemColor } from '../src/core/types';
 import { evaluateMatches } from '../src/core/patterns';
 import { createEmptyBoard } from '../src/core/board';
+import { findValidMoves } from '../src/core/moves';
 
 describe('Deterministic PRNG', () => {
   it('hashString produces expected 32-bit FNV-1a hashes', () => {
@@ -658,6 +659,422 @@ describe('Bomb Matching and Detonate Triggers', () => {
     // Both color 2 (13 gems on board) and color 3 (11 gems on board) should have been completely collected
     expect(res.progress.collected[2]).toBeGreaterThanOrEqual(13);
     expect(res.progress.collected[3]).toBeGreaterThanOrEqual(11);
+  });
+});
+
+describe('Deadlock Recovery (ensureValidMovesRemain)', () => {
+  function gemSig(g: Gem): string {
+    if (g.kind === 'rainbow') return `${g.id}:rainbow`;
+    if (g.kind === 'bomb') return `${g.id}:bomb:${g.color}:${g.tier}`;
+    return `${g.id}:normal:${g.color}`;
+  }
+
+  it('recovers via Phase 2 preserving all gem IDs and types when all 50 Phase-1 random shuffles fail', () => {
+    const colorsGrid: number[][] = [
+      [0, 4, 2, 3],
+      [2, 3, 0, 1],
+      [0, 1, 2, 3],
+      [2, 3, 0, 1],
+    ];
+    const board = createEmptyBoard(4, 4);
+    let id = 1;
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        board[r][c] = { id: id++, kind: 'normal', color: colorsGrid[r][c] as GemColor };
+      }
+    }
+    // Single rainbow + single color-4 gem at top-left so clearing only removes (0,0) and (0,1)
+    board[0][0] = { id: 101, kind: 'rainbow' };
+    board[0][1] = { id: 102, kind: 'normal', color: 4 };
+
+    const survivingSigs: string[] = [];
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (r === 0 && (c === 0 || c === 1)) continue;
+        survivingSigs.push(gemSig(board[r][c]!));
+      }
+    }
+
+    const config: LevelConfig = {
+      level: 1,
+      seed: 1001,
+      seedKey: 'phase2_forced_failure',
+      rows: 4,
+      cols: 4,
+      colors: 5,
+      moves: 10,
+      goals: [{ type: 'score', target: 50000 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    const origShuffleInt = engine.rngManager.shuffleRng.int.bind(engine.rngManager.shuffleRng);
+    let phase1Calls = 0;
+
+    try {
+      // Refill (0,0)=0 and (0,1)=1 to yield deadlocked 4x4 grid with 4 of each color 0..3
+      vi.spyOn(engine.rngManager.spawnRngs[0], 'int').mockReturnValue(0);
+      vi.spyOn(engine.rngManager.spawnRngs[1], 'int').mockReturnValue(1);
+      // Force identity permutation for all 50 Phase-1 Fisher-Yates loops (50 * 15 calls on 16 gems)
+      vi.spyOn(engine.rngManager.shuffleRng, 'int').mockImplementation((n: number) => {
+        if (phase1Calls < 50 * 15) {
+          phase1Calls++;
+          return n - 1;
+        }
+        return origShuffleInt(n);
+      });
+
+      const res = engine.resolveMove({ r: 0, c: 0 }, { r: 0, c: 1 });
+      expect(res.accepted).toBe(true);
+      expect(phase1Calls).toBe(50 * 15);
+
+      const finalBoard = engine.snapshot as Board;
+      expect(evaluateMatches(finalBoard).length).toBe(0);
+      expect(engine.findValidMoves().length).toBeGreaterThan(0);
+      expect(findValidMoves(finalBoard).length).toBeGreaterThan(0);
+      expect(res.steps.some((s) => s.type === 'shuffle')).toBe(true);
+      expect(res.steps.some((s) => s.type === 'transform')).toBe(false);
+
+      const refillStep = res.steps.find((s) => s.type === 'refill');
+      expect(refillStep).toBeDefined();
+      const spawnedSigs =
+        refillStep && refillStep.type === 'refill'
+          ? refillStep.spawns.map((sp) => gemSig(sp.gem))
+          : [];
+      const expectedMultiset = [...survivingSigs, ...spawnedSigs].sort();
+
+      const actualMultiset: string[] = [];
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 4; c++) {
+          expect(finalBoard[r][c]).not.toBeNull();
+          actualMultiset.push(gemSig(finalBoard[r][c]!));
+        }
+      }
+      actualMultiset.sort();
+      expect(actualMultiset).toEqual(expectedMultiset);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('deterministically recovers a naturally skewed deadlocked board across identical engines', () => {
+    const skewedGrid: number[][] = [
+      [0, 4, 2, 1, 1, 2, 0, 0],
+      [0, 0, 3, 1, 1, 3, 0, 0],
+      [1, 1, 2, 0, 0, 2, 1, 1],
+      [1, 1, 3, 0, 0, 3, 1, 1],
+      [0, 0, 2, 1, 1, 2, 0, 0],
+      [0, 0, 3, 1, 1, 3, 0, 0],
+      [1, 1, 2, 0, 0, 2, 1, 1],
+      [1, 1, 3, 0, 0, 3, 1, 1],
+    ];
+
+    const makeBoard = (): Board => {
+      const board = createEmptyBoard(8, 8);
+      let id = 1;
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          board[r][c] = { id: id++, kind: 'normal', color: skewedGrid[r][c] as GemColor };
+        }
+      }
+      board[0][0] = { id: 500, kind: 'rainbow' };
+      return board;
+    };
+
+    const runEngine = (spyShuffle = false) => {
+      const config: LevelConfig = {
+        level: 1,
+        seed: 2026,
+        seedKey: 'skewed_determinism',
+        rows: 8,
+        cols: 8,
+        colors: 5,
+        moves: 10,
+        goals: [{ type: 'score', target: 50000 }],
+        boardOverride: makeBoard(),
+      };
+      const engine = new CoreEngine(config);
+      vi.spyOn(engine.rngManager.spawnRngs[0], 'int').mockReturnValue(0);
+      vi.spyOn(engine.rngManager.spawnRngs[1], 'int').mockReturnValue(0);
+      const shuffleSpy = spyShuffle ? vi.spyOn(engine.rngManager.shuffleRng, 'int') : null;
+      const res = engine.resolveMove({ r: 0, c: 0 }, { r: 0, c: 1 });
+      return { engine, res, shuffleCalls: shuffleSpy ? shuffleSpy.mock.calls.length : 0 };
+    };
+
+    try {
+      const run1 = runEngine(true);
+      const run2 = runEngine(false);
+
+      expect(run1.res.accepted).toBe(true);
+      expect(run2.res.accepted).toBe(true);
+      expect(run1.shuffleCalls).toBeGreaterThan(50 * 63);
+      expect(evaluateMatches(run1.engine.snapshot as Board).length).toBe(0);
+      expect(run1.engine.findValidMoves().length).toBeGreaterThan(0);
+      expect(run1.res.steps.some((s) => s.type === 'shuffle')).toBe(true);
+      expect(run1.res.steps.some((s) => s.type === 'transform')).toBe(false);
+      expect(run1.res.boardHash).toBe(run2.res.boardHash);
+      expect(run1.res.steps).toEqual(run2.res.steps);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('recovers via Phase 3 with shuffle and transform steps when gem color counts make permutations impossible', () => {
+    const board = createEmptyBoard(3, 3);
+    board[0][0] = { id: 1, kind: 'rainbow' };
+    board[0][1] = { id: 2, kind: 'normal', color: 4 };
+    board[0][2] = { id: 3, kind: 'normal', color: 1 };
+    board[1][0] = { id: 4, kind: 'normal', color: 1 };
+    board[1][1] = { id: 5, kind: 'normal', color: 2 };
+    board[1][2] = { id: 6, kind: 'normal', color: 0 };
+    board[2][0] = { id: 7, kind: 'normal', color: 2 };
+    board[2][1] = { id: 8, kind: 'normal', color: 0 };
+    board[2][2] = { id: 9, kind: 'normal', color: 3 };
+
+    const config: LevelConfig = {
+      level: 1,
+      seed: 3003,
+      seedKey: 'phase3_impossible_multiset',
+      rows: 3,
+      cols: 3,
+      colors: 5,
+      moves: 10,
+      goals: [{ type: 'score', target: 50000 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    try {
+      // Refill (0,0)=3 and (0,1)=4 so counts are 0:2, 1:2, 2:2, 3:2, 4:1 (all <= 2)
+      vi.spyOn(engine.rngManager.spawnRngs[0], 'int').mockReturnValue(3);
+      vi.spyOn(engine.rngManager.spawnRngs[1], 'int').mockReturnValue(4);
+
+      const res = engine.resolveMove({ r: 0, c: 0 }, { r: 0, c: 1 });
+      expect(res.accepted).toBe(true);
+
+      const finalBoard = engine.snapshot as Board;
+      expect(evaluateMatches(finalBoard).length).toBe(0);
+      expect(engine.findValidMoves().length).toBeGreaterThan(0);
+      expect(findValidMoves(finalBoard).length).toBeGreaterThan(0);
+      expect(res.steps.some((s) => s.type === 'shuffle')).toBe(true);
+      expect(res.steps.some((s) => s.type === 'transform')).toBe(true);
+
+      const seenIds = new Set<number>();
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const gem = finalBoard[r][c];
+          expect(gem).not.toBeNull();
+          seenIds.add(gem!.id);
+        }
+      }
+      expect(seenIds.size).toBe(9);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('recovers a degenerate 2x2 board via Phase 3 without deadlocking', () => {
+    const board = createEmptyBoard(2, 2);
+    board[0][0] = { id: 1, kind: 'rainbow' };
+    board[0][1] = { id: 2, kind: 'normal', color: 0 };
+    board[1][0] = { id: 3, kind: 'normal', color: 1 };
+    board[1][1] = { id: 4, kind: 'normal', color: 2 };
+
+    const config: LevelConfig = {
+      level: 1,
+      seed: 4004,
+      seedKey: 'phase3_degenerate_2x2',
+      rows: 2,
+      cols: 2,
+      colors: 4,
+      moves: 10,
+      goals: [{ type: 'score', target: 50000 }],
+      boardOverride: board,
+    };
+
+    const engine = new CoreEngine(config);
+    const res = engine.resolveMove({ r: 0, c: 0 }, { r: 0, c: 1 });
+    expect(res.accepted).toBe(true);
+
+    const finalBoard = engine.snapshot as Board;
+    expect(evaluateMatches(finalBoard).length).toBe(0);
+    expect(engine.findValidMoves().length).toBeGreaterThan(0);
+    expect(findValidMoves(finalBoard).length).toBeGreaterThan(0);
+    expect(res.steps.some((s) => s.type === 'shuffle')).toBe(true);
+    expect(res.steps.some((s) => s.type === 'transform')).toBe(true);
+
+    const seenIds = new Set<number>();
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        const gem = finalBoard[r][c];
+        expect(gem).not.toBeNull();
+        seenIds.add(gem!.id);
+      }
+    }
+    expect(seenIds.size).toBe(4);
+  });
+});
+
+describe('Outcomes, Leftover-Move Bonus, and Auto-Shuffle', () => {
+  function makeBoard(grid: GemColor[][]): Board {
+    const board = createEmptyBoard(grid.length, grid[0].length);
+    let id = 1;
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[r].length; c++) {
+        board[r][c] = { id: id++, kind: 'normal', color: grid[r][c] };
+      }
+    }
+    return board;
+  }
+
+  // CoreEngine seeds BoardRngManager from config.level / config.seedKey.
+  // With cols: 4 and level: 2, turn 1 refills (0,0)-(0,2) without cascading,
+  // while turn 2's spawn:2 draw triggers a deterministic cascade-2 match (+225 pts).
+  const twoTurnGrid: GemColor[][] = [
+    [0, 0, 3, 0],
+    [2, 3, 0, 1],
+    [0, 1, 2, 3],
+    [0, 0, 2, 0],
+  ];
+
+  it('awards won outcome and movesLeft * 1000 bonus while preserving movesLeft', () => {
+    const config: LevelConfig = {
+      level: 2,
+      seed: hashString('level_2'),
+      rows: 4,
+      cols: 4,
+      colors: 4,
+      moves: 5,
+      goals: [{ type: 'score', target: 300 }],
+      boardOverride: makeBoard(twoTurnGrid),
+    };
+
+    const engine = new CoreEngine(config);
+
+    // Turn 1: 3-match scores 150 (< 300). Outcome stays 'continue' with no bonus.
+    const res1 = engine.resolveMove({ r: 0, c: 2 }, { r: 0, c: 3 });
+    expect(res1.accepted).toBe(true);
+    expect(res1.movesLeft).toBe(4);
+    expect(res1.outcome).toBe('continue');
+    expect(res1.pointsGained).toBe(150);
+    expect(res1.progress.score).toBe(150);
+
+    // Turn 2: 3-match (150) + cascade-2 (225) = 375 -> total 525 >= 300 -> 'won' with 3 movesLeft -> +3000 bonus.
+    const res2 = engine.resolveMove({ r: 3, c: 2 }, { r: 3, c: 3 });
+    expect(res2.accepted).toBe(true);
+    expect(res2.movesLeft).toBe(3);
+    expect(engine.movesLeft).toBe(3);
+    expect(res2.outcome).toBe('won');
+    expect(res2.pointsGained).toBe(375 + 3 * 1000);
+    expect(res2.progress.score).toBe(525 + 3 * 1000);
+    expect(engine.progress.score).toBe(3525);
+    expect(res2.steps.some((s) => s.type === 'shuffle')).toBe(false);
+  });
+
+  it('awards won outcome with zero leftover bonus when winning on the final move', () => {
+    const config: LevelConfig = {
+      level: 2,
+      seed: hashString('level_2'),
+      rows: 4,
+      cols: 4,
+      colors: 4,
+      moves: 1,
+      goals: [{ type: 'collect', color: 0, count: 3 }],
+      boardOverride: makeBoard(twoTurnGrid),
+    };
+
+    const engine = new CoreEngine(config);
+    const res = engine.resolveMove({ r: 0, c: 2 }, { r: 0, c: 3 });
+
+    expect(res.accepted).toBe(true);
+    expect(res.movesLeft).toBe(0);
+    expect(res.outcome).toBe('won');
+    expect(res.pointsGained).toBe(150);
+    expect(res.progress.score).toBe(150);
+  });
+
+  it('returns lost outcome when moves reach 0 without meeting goals', () => {
+    const config: LevelConfig = {
+      level: 2,
+      seed: hashString('level_2'),
+      rows: 4,
+      cols: 4,
+      colors: 4,
+      moves: 2,
+      goals: [{ type: 'score', target: 5000 }],
+      boardOverride: makeBoard(twoTurnGrid),
+    };
+
+    const engine = new CoreEngine(config);
+
+    const res1 = engine.resolveMove({ r: 0, c: 2 }, { r: 0, c: 3 });
+    expect(res1.accepted).toBe(true);
+    expect(res1.movesLeft).toBe(1);
+    expect(res1.outcome).toBe('continue');
+
+    // Invalid swap does not consume the remaining move or trigger loss
+    const invalid = engine.resolveMove({ r: 1, c: 0 }, { r: 1, c: 1 });
+    expect(invalid.accepted).toBe(false);
+    expect(invalid.movesLeft).toBe(1);
+    expect(invalid.outcome).toBe('continue');
+
+    const res2 = engine.resolveMove({ r: 3, c: 2 }, { r: 3, c: 3 });
+    expect(res2.accepted).toBe(true);
+    expect(res2.movesLeft).toBe(0);
+    expect(engine.movesLeft).toBe(0);
+    expect(res2.outcome).toBe('lost');
+    expect(res2.pointsGained).toBe(375);
+    expect(res2.progress.score).toBe(525);
+  });
+
+  it('emits a deterministic shuffle step when no valid moves remain after a turn', () => {
+    const deadlockGrid: GemColor[][] = [
+      [0, 0, 3, 0],
+      [2, 3, 0, 1],
+      [0, 1, 2, 3],
+      [2, 3, 0, 1],
+    ];
+
+    const makeConfig = (): LevelConfig => ({
+      level: 2,
+      seed: hashString('level_2'),
+      rows: 4,
+      cols: 4,
+      colors: 4,
+      moves: 5,
+      goals: [{ type: 'score', target: 5000 }],
+      boardOverride: makeBoard(deadlockGrid),
+    });
+
+    const engine = new CoreEngine(makeConfig());
+    const res = engine.resolveMove({ r: 0, c: 2 }, { r: 0, c: 3 });
+
+    expect(res.accepted).toBe(true);
+    expect(res.outcome).toBe('continue');
+
+    const shuffleStep = res.steps.find(
+      (s): s is Extract<typeof s, { type: 'shuffle' }> => s.type === 'shuffle'
+    );
+    expect(shuffleStep).toBeDefined();
+    expect(shuffleStep!.moves.length).toBeGreaterThan(0);
+
+    const snapshot = engine.snapshot as Board;
+    for (const move of shuffleStep!.moves) {
+      expect(move.from).not.toEqual(move.to);
+      expect(snapshot[move.to.r][move.to.c]?.id).toBe(move.id);
+    }
+
+    const postIds = snapshot.flat().map((g) => g?.id);
+    expect(postIds.every((id) => typeof id === 'number')).toBe(true);
+    expect(new Set(postIds).size).toBe(16);
+    expect(evaluateMatches(snapshot).length).toBe(0);
+    expect(engine.findValidMoves().length).toBeGreaterThan(0);
+
+    // Determinism check against a fresh engine with identical config
+    const replayEngine = new CoreEngine(makeConfig());
+    const replayRes = replayEngine.resolveMove({ r: 0, c: 2 }, { r: 0, c: 3 });
+    expect(replayRes.boardHash).toBe(res.boardHash);
+    expect(replayRes.steps).toEqual(res.steps);
   });
 });
 

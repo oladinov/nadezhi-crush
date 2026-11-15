@@ -182,12 +182,16 @@ export class GameScene {
   }
 
   private onResize = () => {
+    const winW = typeof window !== 'undefined' ? window.innerWidth : 800;
+    const winH = typeof window !== 'undefined' ? window.innerHeight : 600;
     let width = this.container.clientWidth;
     let height = this.container.clientHeight;
 
-    // Safety fallback if container not yet measured by browser layout engine
-    if (!width || width <= 0) width = typeof window !== 'undefined' ? window.innerWidth : 800;
-    if (!height || height <= 0) height = typeof window !== 'undefined' ? window.innerHeight : 600;
+    // Safety fallback & viewport clamp so canvas never forces horizontal overflow on mobile
+    if (!width || width <= 0) width = winW;
+    if (!height || height <= 0) height = winH;
+    width = Math.min(width, winW);
+    height = Math.min(height, winH);
     if (!width || width <= 0) width = 800;
     if (!height || height <= 0) height = 600;
 

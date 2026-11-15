@@ -13,6 +13,8 @@
   "license": "ISC",
   "description": "Deterministic Match-3 in Three.js",
   "dependencies": {
+    "@fontsource/cinzel": "^5.3.0",
+    "@fontsource/outfit": "^5.3.0",
     "canvas-confetti": "^1.9.4",
     "gsap": "^3.15.0",
     "three": "^0.186.1"

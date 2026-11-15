@@ -3,6 +3,7 @@ import {
   UIStateUpdate,
   getLevelBiome,
   getEmoteSetForLevel,
+  BIOME_CHAPTER_SIZE,
   INFINITE_CHAPTER_SIZE,
   INFINITE_START_LEVEL,
 } from './game';
@@ -74,6 +75,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const modalLose = document.getElementById('modal-lose')!;
   const modalLoseScore = document.getElementById('modal-lose-score')!;
+  const modalLoseGoals = document.getElementById('modal-lose-goals');
+  const btnModalLoseLevels = document.getElementById('btn-modal-lose-levels');
   const btnModalLoseRetry = document.getElementById('btn-modal-lose-retry')!;
 
   const modalLevelSelect = document.getElementById('modal-level-select')!;
@@ -105,9 +108,16 @@ window.addEventListener('DOMContentLoaded', () => {
   const modalHelp = document.getElementById('modal-help')!;
   const btnCloseHelp = document.getElementById('btn-close-help')!;
 
+  const modalCommunity = document.getElementById('modal-community');
+  const btnCloseCommunity = document.getElementById('btn-close-community');
+  const btnCloseCommunityFooter = document.getElementById('btn-close-community-footer');
+  const communityTwitchBadge = document.getElementById('community-twitch-badge');
+
   let lastBiomeImage = '';
   let levelCompletedProcessed = false;
   let lastCompletedLevel = -1;
+  let hasPendingPwaPrompt = false;
+  let triggerDeferredPwaBanner: (() => void) | null = null;
 
   // UI Update Handler
   const handleUIUpdate = (ui: UIStateUpdate) => {
@@ -257,7 +267,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Discrete community promo card: only on milestone levels (Level 1, end of biomes, or top ranking)
         if (modalWinCommunity) {
-          const isBiomeClimax = ui.level % 4 === 0;
+          const isBiomeClimax = ui.level > 0 && ui.level % BIOME_CHAPTER_SIZE === 0;
           const isIntroLevel = ui.level === 1;
           const isEpicAchievement = res.rankInHallOfFame !== null && res.rankInHallOfFame <= 5;
 
@@ -280,6 +290,9 @@ window.addEventListener('DOMContentLoaded', () => {
       }
 
       modalWin.classList.add('active');
+      if (ui.level === 1 && hasPendingPwaPrompt && triggerDeferredPwaBanner) {
+        triggerDeferredPwaBanner();
+      }
     } else {
       modalWin.classList.remove('active');
       levelCompletedProcessed = false;
@@ -287,6 +300,42 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (ui.state === 'LevelFailed') {
       modalLoseScore.textContent = ui.score.toLocaleString();
+      if (modalLoseGoals) {
+        modalLoseGoals.replaceChildren();
+        for (const g of ui.goals) {
+          const row = document.createElement('div');
+          row.className = `lose-goal-row ${g.completed ? 'completed' : ''}`;
+
+          const left = document.createElement('div');
+          left.className = 'lose-goal-left';
+
+          if (g.iconType === 'image') {
+            const img = document.createElement('img');
+            img.src = g.icon;
+            img.className = 'goal-chip-thumb';
+            img.alt = g.description;
+            left.appendChild(img);
+          } else {
+            const iconSpan = document.createElement('span');
+            iconSpan.textContent = g.icon;
+            left.appendChild(iconSpan);
+          }
+
+          const label = document.createElement('span');
+          label.textContent = g.description;
+          left.appendChild(label);
+
+          const progress = document.createElement('span');
+          progress.className = 'lose-goal-progress';
+          progress.textContent = g.completed
+            ? `✓ ${g.current.toLocaleString()}/${g.target.toLocaleString()}`
+            : `${g.current.toLocaleString()}/${g.target.toLocaleString()}`;
+
+          row.appendChild(left);
+          row.appendChild(progress);
+          modalLoseGoals.appendChild(row);
+        }
+      }
       modalLose.classList.add('active');
     } else {
       modalLose.classList.remove('active');
@@ -385,6 +434,11 @@ window.addEventListener('DOMContentLoaded', () => {
   btnModalLoseRetry.addEventListener('click', () => {
     modalLose.classList.remove('active');
     game.restartLevel();
+  });
+
+  btnModalLoseLevels?.addEventListener('click', () => {
+    modalLose.classList.remove('active');
+    btnLevels.click();
   });
 
   // Level selector modal with biomes and difficulty grouping
@@ -823,21 +877,48 @@ window.addEventListener('DOMContentLoaded', () => {
     modalHelp.classList.remove('active');
   });
 
-  // Community Hub opener (scrolls to Nadezhi channels section)
+  // Community Hub opener (dedicated modal)
   const openCommunityHub = () => {
     closeSettings();
-    modalHelp.classList.add('active');
-    setTimeout(() => {
-      const commSection = document.querySelector('.help-community-section');
-      if (commSection) {
-        commSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
+    modalHelp.classList.remove('active');
+    modalCommunity?.classList.add('active');
   };
+
+  const closeCommunityHub = () => {
+    modalCommunity?.classList.remove('active');
+  };
+
+  btnCloseCommunity?.addEventListener('click', closeCommunityHub);
+  btnCloseCommunityFooter?.addEventListener('click', closeCommunityHub);
+
+  // Escape key & backdrop-click dismissal for non-blocking modals
+  const dismissibleModals: HTMLElement[] = [
+    modalSettings,
+    modalLevelSelect,
+    modalLeaderboard,
+    modalHelp,
+    ...(modalCommunity ? [modalCommunity] : []),
+  ];
+
+  for (const overlay of dismissibleModals) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.classList.remove('active');
+      }
+    });
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    for (const overlay of dismissibleModals) {
+      if (overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+      }
+    }
+  });
 
   const btnCommunitySettings = document.getElementById('btn-community-settings');
   const socialDockPill = document.getElementById('social-dock-pill');
-  const btnDockAll = document.getElementById('btn-dock-all');
 
   btnCommunitySettings?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -845,11 +926,6 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   socialDockPill?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openCommunityHub();
-  });
-
-  btnDockAll?.addEventListener('click', (e) => {
     e.stopPropagation();
     openCommunityHub();
   });
@@ -886,13 +962,14 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   const handleInstallClick = () => {
-    if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      deferredInstallPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
+    if (!isIOS && deferredInstallPrompt) {
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      promptEvent.prompt();
+      promptEvent.userChoice.then((choiceResult: any) => {
+        if (choiceResult?.outcome === 'accepted') {
           hideInstallBanner();
         }
-        deferredInstallPrompt = null;
       });
     } else {
       hideInstallBanner();
@@ -909,37 +986,40 @@ window.addEventListener('DOMContentLoaded', () => {
       if (pwaDescText) pwaDescText.style.display = 'none';
       if (btnPwaInstall) {
         btnPwaInstall.textContent = '¡Entendido!';
-        btnPwaInstall.onclick = hideInstallBanner;
       }
     } else {
       if (pwaIosInstructions) pwaIosInstructions.style.display = 'none';
       if (pwaDescText) pwaDescText.style.display = 'block';
       if (btnPwaInstall) {
         btnPwaInstall.textContent = '📲 Agregar a pantalla principal';
-        btnPwaInstall.onclick = handleInstallClick;
       }
     }
 
     pwaInstallBanner.style.display = 'block';
   };
 
-  // Android & Chromium desktop install prompt
+  // Android & Chromium desktop install prompt (deferred until Level 1 completion)
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
     if (!isStandalone) {
-      setTimeout(() => {
-        showInstallBanner(false);
-      }, 3000);
+      hasPendingPwaPrompt = true;
     }
   });
 
-  // Prompt on iOS Safari after 3.5s
+  // iOS Safari install prompt (deferred until Level 1 completion)
   if (isIOS && !isStandalone) {
-    setTimeout(() => {
-      showInstallBanner(false);
-    }, 3500);
+    hasPendingPwaPrompt = true;
   }
+
+  triggerDeferredPwaBanner = () => {
+    hasPendingPwaPrompt = false;
+    const isTwitchBannerVisible =
+      twitchLiveBanner !== null && twitchLiveBanner.style.display === 'block';
+    if (!isTwitchBannerVisible) {
+      showInstallBanner(false);
+    }
+  };
 
   btnPwaInstall?.addEventListener('click', handleInstallClick);
   btnPwaLater?.addEventListener('click', hideInstallBanner);
@@ -959,7 +1039,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnTwitchLiveDismiss = document.getElementById('btn-twitch-live-dismiss');
   const dockLabel = document.getElementById('dock-label');
   const dockPulseDot = document.getElementById('dock-pulse-dot');
-  const dockBtnTwitch = document.querySelector('.social-dock-btn.twitch');
 
   const TWITCH_ALERT_KEY = 'nadezhi_twitch_alert_date';
   const TWITCH_CHANNEL = 'nadezhi';
@@ -1002,7 +1081,10 @@ window.addEventListener('DOMContentLoaded', () => {
         socialDockPill?.classList.add('is-live');
         if (dockLabel) dockLabel.textContent = '🔴 ¡EN VIVO!';
         if (dockPulseDot) dockPulseDot.classList.add('is-live');
-        if (dockBtnTwitch) dockBtnTwitch.classList.add('is-live');
+        if (communityTwitchBadge) {
+          communityTwitchBadge.textContent = '🔴 EN VIVO';
+          communityTwitchBadge.classList.add('live');
+        }
 
         // 2. Prompt user maximum once per 24 hours
         let lastPrompt = 0;
@@ -1019,7 +1101,10 @@ window.addEventListener('DOMContentLoaded', () => {
         socialDockPill?.classList.remove('is-live');
         if (dockLabel) dockLabel.textContent = '💜 Streams';
         if (dockPulseDot) dockPulseDot.classList.remove('is-live');
-        if (dockBtnTwitch) dockBtnTwitch.classList.remove('is-live');
+        if (communityTwitchBadge) {
+          communityTwitchBadge.textContent = 'Streams';
+          communityTwitchBadge.classList.remove('live');
+        }
         if (twitchLiveBanner) twitchLiveBanner.style.display = 'none';
       }
     } catch {

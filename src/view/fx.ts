@@ -152,15 +152,14 @@ export class FXManager {
    * Spawns a burst of particles at a given world position.
    */
   public spawnBurst(pos: THREE.Vector3, colorHex: number, count = 10, speedMult = 1.0) {
-    const mat = new THREE.MeshBasicMaterial({
-      color: colorHex,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      opacity: 1,
-    });
-
     for (let i = 0; i < count; i++) {
-      const mesh = new THREE.Mesh(this.particleGeo, mat.clone());
+      const mat = new THREE.MeshBasicMaterial({
+        color: colorHex,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        opacity: 1,
+      });
+      const mesh = new THREE.Mesh(this.particleGeo, mat);
       mesh.position.copy(pos);
       mesh.position.z = 0.2;
       this.scene.fxGroup.add(mesh);

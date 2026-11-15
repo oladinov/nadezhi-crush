@@ -11,6 +11,8 @@ export class TimelinePlayer {
   private gemManager: GemViewManager;
   private fx: FXManager;
   private activeTimelines: gsap.core.Timeline[] = [];
+  private activeDelayedCalls: Set<gsap.core.Tween> = new Set();
+  private isDestroyed = false;
 
   constructor(scene: GameScene, gemManager: GemViewManager, fx: FXManager) {
     this.scene = scene;
@@ -22,11 +24,13 @@ export class TimelinePlayer {
 
   private onVisibilityChange = () => {
     if (document.hidden) {
+      this.cancelDelayedCalls();
       // Complete active timelines instantly to prevent desynchronization
-      for (const tl of this.activeTimelines) {
+      const timelines = [...this.activeTimelines];
+      this.activeTimelines = [];
+      for (const tl of timelines) {
         tl.progress(1);
       }
-      this.activeTimelines = [];
     }
   };
 
@@ -52,6 +56,10 @@ export class TimelinePlayer {
   }
 
   private executeStep(step: Step): Promise<void> {
+    if (this.isDestroyed) {
+      return new Promise<void>(() => {});
+    }
+
     switch (step.type) {
       case 'swap':
         return new Promise((resolve) => this.handleSwap(step, resolve));
@@ -272,6 +280,9 @@ export class TimelinePlayer {
 
       sound.playBlackHoleHum();
       await this.fx.spawnBlackHoleSingularity(vortexPos, views);
+      if (this.isDestroyed) {
+        return new Promise<void>(() => {});
+      }
 
       for (const item of step.cells) {
         this.gemManager.removeView(item.gem.id);
@@ -308,8 +319,13 @@ export class TimelinePlayer {
 
       // Radiant prismatic laser beams shoot out to each target gem!
       await this.fx.spawnRainbowPrismaticBeams(rainbowPos, targetPositions, colorHex);
+      if (this.isDestroyed) {
+        return new Promise<void>(() => {});
+      }
     } else {
-      sound.playMatch(step.cascade);
+      if (!document.hidden) {
+        sound.playMatch(step.cascade);
+      }
       this.fx.shake(Math.min(2.5, 0.5 + step.cells.length * 0.15));
     }
 
@@ -342,10 +358,10 @@ export class TimelinePlayer {
         this.fx.spawnBurst(worldPos, colorHex, 8, 1.0);
 
         const itemPts = item.points ?? ptsPerGem;
-        if (itemPts > 0) {
+        if (itemPts > 0 && !document.hidden) {
           const scoreColor = itemPts >= 500 ? '#fde047' : '#fef08a';
           if (delay > 0) {
-            gsap.delayedCall(delay, () => {
+            this.scheduleDelayedCall(delay, () => {
               this.fx.spawnFloatingScore(worldPos, itemPts, scoreColor);
             });
           } else {
@@ -385,12 +401,18 @@ export class TimelinePlayer {
             delay
           );
 
-          gsap.delayedCall(delay + 0.07, () => {
-            this.fx.spawnCartoonPop(worldPos, colorHex);
-            sound.playPopSound(1.0 + Math.min(0.6, (step.cascade - 1) * 0.12));
-          });
+          if (!document.hidden) {
+            this.scheduleDelayedCall(delay + 0.07, () => {
+              this.fx.spawnCartoonPop(worldPos, colorHex);
+              sound.playPopSound(1.0 + Math.min(0.6, (step.cascade - 1) * 0.12));
+            });
+          }
         }
       });
+
+      if (document.hidden) {
+        tl.progress(1);
+      }
     });
   }
 
@@ -553,19 +575,41 @@ export class TimelinePlayer {
   }
 
   private handleCombo(step: Extract<Step, { type: 'combo' }>, done: () => void) {
+    if (this.isDestroyed) return;
+    if (document.hidden) {
+      done();
+      return;
+    }
+
     sound.playComboChime(step.tier);
     this.fx.showComboBanner(step.cascade, step.title, step.tier, step.points);
-    setTimeout(() => {
-      done();
-    }, 180);
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+    tl.to({}, { duration: 0.18 });
   }
 
   private handleBoardClear(step: Extract<Step, { type: 'boardClear' }>, done: () => void) {
+    if (this.isDestroyed) return;
+    if (document.hidden) {
+      done();
+      return;
+    }
+
     sound.playBoardClearFanfare();
     this.fx.showBoardClearBanner(step.title, step.points);
-    setTimeout(() => {
-      done();
-    }, 700);
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this.removeTimeline(tl);
+        done();
+      },
+    });
+    this.activeTimelines.push(tl);
+    tl.to({}, { duration: 0.7 });
   }
 
   /**
@@ -628,6 +672,25 @@ export class TimelinePlayer {
     if (idx !== -1) {
       this.activeTimelines.splice(idx, 1);
     }
+  }
+
+  private scheduleDelayedCall(delay: number, callback: () => void): gsap.core.Tween {
+    let call: gsap.core.Tween;
+    call = gsap.delayedCall(delay, () => {
+      this.activeDelayedCalls.delete(call);
+      if (!this.isDestroyed && !document.hidden) {
+        callback();
+      }
+    });
+    this.activeDelayedCalls.add(call);
+    return call;
+  }
+
+  private cancelDelayedCalls() {
+    for (const call of this.activeDelayedCalls) {
+      call.kill();
+    }
+    this.activeDelayedCalls.clear();
   }
 
   /**
@@ -709,10 +772,13 @@ export class TimelinePlayer {
   }
 
   public destroy() {
+    this.isDestroyed = true;
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
-    for (const tl of this.activeTimelines) {
+    this.cancelDelayedCalls();
+    const timelines = [...this.activeTimelines];
+    this.activeTimelines = [];
+    for (const tl of timelines) {
       tl.kill();
     }
-    this.activeTimelines = [];
   }
 }
